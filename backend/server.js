@@ -14,11 +14,10 @@ import { apiLimiter }             from './src/middleware/rateLimit.js';
 import apiRoutes                  from './src/routes/index.js';
 
 async function bootstrap() {
-  // 1. Supabase — required in production, optional for local guest testing.
+  // 1. Supabase — optional. Falls back to in-memory storage if not configured.
   const ok = await testSupabaseConnection();
-  if (!ok && !config.isDev) {
-    logger.error('Supabase is required but could not connect. Check your .env credentials.');
-    process.exit(1);
+  if (!ok) {
+    logger.warn('Supabase not connected — running in memory-only mode (data will reset on restart)');
   }
 
   // 2. Express
