@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WatchParty Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+  <!-- Toggle tab (always visible, pulls panel open) -->
+  <div id="toggle-tab" class="toggle-tab" title="WatchParty">
+    <span class="toggle-icon">🎬</span>
+    <span class="toggle-label">WatchParty</span>
+  </div>
+
+  <!-- Main sidebar panel -->
+  <div id="panel" class="panel hidden">
+
+    <!-- Header -->
+    <div class="panel-header">
+      <div class="header-left">
+        <span class="logo-icon">🎬</span>
+        <div>
+          <div class="logo-text">Watch<span>Party</span></div>
+          <div class="platform-name" id="platformName">Connecting...</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="conn-dot" id="connDot" title="Disconnected"></div>
+        <button class="icon-btn" id="closeBtn" title="Close panel">✕</button>
+      </div>
+    </div>
+
+    <!-- Members strip -->
+    <div class="members-strip" id="membersStrip">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="chat">💬 Chat</button>
+      <button class="tab-btn" data-tab="voice">🎙️ Voice</button>
+      <button class="tab-btn" data-tab="reactions">🔥 React</button>
+    </div>
+
+    <!-- ── Chat Tab ── -->
+    <div class="tab-panel active" id="tab-chat">
+      <div class="messages-list" id="messagesList">
+        <div class="empty-state">
+          <div class="empty-icon">💬</div>
+          <p>No messages yet</p>
+          <p class="empty-sub">Be the first to say something!</p>
+        </div>
+      </div>
+      <div class="typing-bar" id="typingBar"></div>
+      <div class="chat-input-row">
+        <textarea
+          id="chatInput"
+          class="chat-input"
+          placeholder="Say something..."
+          rows="1"
+          maxlength="2000"
+        ></textarea>
+        <button class="send-btn" id="sendBtn" title="Send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2 21L23 12 2 3v7l15 2-15 2v7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Voice Tab ── -->
+    <div class="tab-panel" id="tab-voice">
+      <div class="voice-channel-header">
+        <span class="voice-channel-icon">🔊</span>
+        <span class="voice-channel-name">General</span>
+        <span class="voice-member-count" id="voiceMemberCount">0</span>
+      </div>
+
+      <div class="voice-members-list" id="voiceMembersList">
+        <p class="voice-empty">No one in voice yet</p>
+      </div>
+
+      <div class="voice-actions">
+        <button class="btn-join-voice" id="joinVoiceBtn">
+          Join Voice
+        </button>
+        <button class="btn-leave-voice hidden" id="leaveVoiceBtn">
+          Leave Voice
+        </button>
+      </div>
+
+      <!-- Local controls (shown only when in voice) -->
+      <div class="voice-controls hidden" id="voiceControls">
+        <div class="voice-self-row">
+          <div class="voice-self-info">
+            <img class="voice-avatar" id="voiceSelfAvatar" src="" alt="" />
+            <div>
+              <div class="voice-self-name" id="voiceSelfName"></div>
+              <div class="voice-self-status" id="voiceSelfStatus">Speaking</div>
+            </div>
+          </div>
+          <button class="mute-btn" id="muteBtn" title="Toggle mute">🎙️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Reactions Tab ── -->
+    <div class="tab-panel" id="tab-reactions">
+      <p class="reactions-label">Send a reaction — it floats on screen for everyone</p>
+      <div class="reactions-grid" id="reactionsGrid">
+        <!-- Populated by JS -->
+      </div>
+      <div class="reactions-history" id="reactionsHistory">
+        <p class="reactions-history-label">Recent</p>
+        <div id="reactionsFeed"></div>
+      </div>
+    </div>
+
+    <!-- Sync button (always visible at bottom) -->
+    <div class="panel-footer">
+      <button class="sync-btn" id="syncBtn" title="Sync to room">
+        ⟳ Sync Now
+      </button>
+      <button class="leave-btn" id="leaveRoomBtn" title="Leave room">
+        Leave Room
+      </button>
+    </div>
+
+  </div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+name: OCI Capacity Retry
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+
+    steps:
+      - name: Install OCI CLI
+        run: |
+          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Configure OCI CLI
+        run: |
+          mkdir -p ~/.oci
+          printf '%s' "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/key.pem
+          chmod 600 ~/.oci/key.pem
+          printf '[DEFAULT]\nuser=ocid1.user.oc1..aaaaaaaai4axam7g2gvro73xtkys3oinlnw3ililu2wziyygfk7mtn4bpk4a\nfingerprint=c0:4b:b7:92:35:b7:e0:03:e4:51:05:1a:6e:77:de:78\ntenancy=ocid1.tenancy.oc1..aaaaaaaaomt6booam4jvzh3qpjp6irbo6xdckrqldx6abxg2s3leyjwxjwlq\nregion=us-ashburn-1\nkey_file=/home/runner/.oci/key.pem\n' > ~/.oci/config
+          chmod 600 ~/.oci/config
+
+      - name: Retry loop across availability domains
+        env:
+          OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: "True"
+          SUPPRESS_LABEL_WARNING: "True"
+        run: |
+          ADS=("IZtf:US-ASHBURN-AD-1" "IZtf:US-ASHBURN-AD-2" "IZtf:US-ASHBURN-AD-3")
+          COMPARTMENT_ID="ocid1.tenancy.oc1..aaaaaaaaomt6booam4jvzh3qpjp6irbo6xdckrqldx6abxg2s3leyjwxjwlq"
+          SUBNET_ID="ocid1.subnet.oc1.iad.aaaaaaaa6ttntfwtmhvdptj5bgv6i4x4o6qqrridcmpm4qd3ojxm2y3inpxq"
+          IMAGE_ID="ocid1.image.oc1.iad.aaaaaaaas3q57pjdbmj46ykc5djtazakxanfvvadw43iuyguiue6ruvjd6yq"
+          SSH_PUBLIC_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDh6IZ+EqL/pq/xo2Uxng5Aqy+zietX+CPIZZxx0qSbbjyKbO+DuN98ZGYiVjGR9C/FF3Frj1X2SGwijm2zfyHaEWN/0BUsfOFiSsLchCiIhexiBFqGkZ01kQLlLEypRbAzmjvWWJePpaQ+hA3c9+En3nW5VNLV1lsaQBXQrsYXqoy7DHyidCOyTQbMWdA4Fwd9ZKW8ItOIkJQJ+AGd7vdzmKkTYf43e6u+PzOL8WmbeJLtCpR5b0icdBWESjpU15HvVJg411d75Os0B2hCGrbEKR8K18Tsth2qkfkcgGunLOZsVF8eDifeX7ycyeVsy+6gOAd19lm2bFBFj/DmOq5X"
+
+          END_TIME=$((SECONDS + 320*60))
+          while [ $SECONDS -lt $END_TIME ]; do
+            for AD in "${ADS[@]}"; do
+              echo "$(date): Trying $AD ..."
+              RESPONSE=$(oci compute instance launch \
+                --compartment-id "$COMPARTMENT_ID" \
+                --availability-domain "$AD" \
+                --shape "VM.Standard.A1.Flex" \
+                --shape-config '{"ocpus": 2, "memoryInGBs": 12}' \
+                --image-id "$IMAGE_ID" \
+                --subnet-id "$SUBNET_ID" \
+                --assign-public-ip true \
+                --display-name "watchparty-host" \
+                --metadata "{\"ssh_authorized_keys\": \"$SSH_PUBLIC_KEY\"}" \
+                2>&1) || true
+              if echo "$RESPONSE" | grep -qi "Out of host capacity"; then
+                echo "$AD: out of capacity"
+                continue
+              elif echo "$RESPONSE" | grep -qiE "error|not a private key|incorrect|NotAuthenticated|401|ServiceError"; then
+                echo "$AD: error -> $RESPONSE"
+                continue
+              elif ! echo "$RESPONSE" | grep -qi "ocid1.instance"; then
+                echo "$AD: unexpected response -> $RESPONSE"
+                continue
+              else
+                echo "SUCCESS in $AD!"
+                echo "$RESPONSE"
+                exit 0
+              fi
+            done
+            sleep 300
+          done
+          echo "Time limit reached. Scheduled trigger will resume in next 6hr window."

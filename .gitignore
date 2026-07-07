@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+
+# Environment — NEVER commit real secrets
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+mobile/.env
+
+# Expo / React Native
+mobile/.expo/
+mobile/android/
+mobile/ios/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

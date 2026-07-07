@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kushal\\\\watchparty\" -Depth 2 | Where-Object {$_.PSIsContainer} | Select-Object FullName)",
+      "PowerShell(docker ps *)",
+      "PowerShell(wsl --list --running 2>$null; if \\(-not $?\\) { \"WSL not available\" })",
+      "PowerShell(wsl --list 2>$null)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(wsl -d Ubuntu -- redis-cli ping 2>&1)",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\kushal\\\\watchparty\\\\backend\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'C:\\\\Users\\\\kushal\\\\watchparty\\\\backend'; npm run dev\" -WindowStyle Normal)",
+      "PowerShell(Start-Sleep -Seconds 4; try { Invoke-WebRequest -Uri \"http://localhost:4000/api/v1\" -UseBasicParsing -TimeoutSec 5 | Select-Object StatusCode } catch { \"Backend not responding: $_\" })",
+      "PowerShell(netstat *)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:4000/api/v1\" -UseBasicParsing -TimeoutSec 5; \"Status: $\\($r.StatusCode\\)\" } catch { \"Response: $\\($_.Exception.Response.StatusCode\\)\" })",
+      "PowerShell(Start-Process \"http://localhost:5173/login\")",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\kushal\\\\watchparty\\\\backend\" -Recurse -Name)",
+      "Bash(grep -E '\\\\.\\(md|txt|sql|js|json\\)$')",
+      "Bash(npm uninstall *)",
+      "Bash(node *)",
+      "Bash(npm run *)",
+      "Bash(curl *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(npx eslint *)",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(timeout 30 bash -c 'until curl -sf http://localhost:4000/api/v1/health >/dev/null 2>&1 || curl -s http://localhost:4000 >/dev/null 2>&1; do sleep 1; done')",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p /tmp/wp-verify)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)",
+      "Bash(ls /c/Users/kushal/AppData/Local/ms-playwright/ 2>&1)",
+      "Read(//c/Users/kushal/AppData/Local/ms-playwright//**)",
+      "Bash(find /c/Users/kushal -maxdepth 3 -iname \"verify.mjs\" 2>/dev/null)",
+      "Read(//c/Users/kushal/**)",
+      "Bash(rm -rf /c/Users/kushal/tmp/wp-verify && rmdir /c/Users/kushal/tmp 2>/dev/null; echo done)",
+      "Bash(netstat -ano)",
+      "Bash(cmd /c \"dir /B /S backend\\\\src\\\\controllers 2>nul | sort\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\kushal\\tmp"
+    ]
+  }
+}

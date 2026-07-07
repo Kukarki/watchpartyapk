@@ -1,0 +1,173 @@
+{
+  "manifest_version": 3,
+  "name": "WatchParty — Sync Streaming",
+  "version": "1.0.0",
+  "description": "Watch Prime Video, Netflix, Disney+, YouTube and more in perfect sync with friends. Chat, voice, and reactions — all built in.",
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+
+  "applications": {
+    "gecko": {
+      "id": "watchparty@local",
+      "strict_min_version": "109.0"
+    }
+  },
+
+  "host_permissions": [
+    "http://localhost:5173/*",
+    "http://localhost:5174/*",
+    "http://localhost:4000/*",
+    "https://watchparty.app/*",
+    "https://www.primevideo.com/*",
+    "https://www.amazon.com/gp/video/*",
+    "https://www.netflix.com/*",
+    "https://www.disneyplus.com/*",
+    "https://www.hbomax.com/*",
+    "https://www.max.com/*",
+    "https://www.youtube.com/*",
+    "https://tv.apple.com/*",
+    "https://kisskh.co/*",
+    "https://kisskh.me/*"
+  ],
+
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "watchparty@local",
+      "strict_min_version": "109.0",
+      "update_url": "https://example.com/updates.json"
+    }
+  },
+
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "32":  "icons/icon32.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "WatchParty"
+  },
+
+  "content_scripts": [
+
+    {
+      "matches": [
+        "http://localhost:5173/*",
+        "http://localhost:5174/*",
+        "https://watchparty.app/*"
+      ],
+      "js": ["src/content/website-bridge.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+
+    {
+      "matches": [
+        "https://www.primevideo.com/*",
+        "https://www.amazon.com/gp/video/*",
+        "https://www.netflix.com/*",
+        "https://www.disneyplus.com/*",
+        "https://www.hbomax.com/*",
+        "https://www.max.com/*",
+        "https://www.youtube.com/*",
+        "https://tv.apple.com/*",
+        "https://kisskh.co/*",
+        "https://kisskh.me/*"
+      ],
+      "js": ["src/content/streaming-detector.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+
+    {
+      "matches": [
+        "https://www.primevideo.com/*",
+        "https://www.amazon.com/gp/video/*"
+      ],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://www.netflix.com/watch/*"],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://www.disneyplus.com/video/*"],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://www.hbomax.com/*",
+        "https://www.max.com/*"
+      ],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://www.youtube.com/watch*"],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://tv.apple.com/*"],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://kisskh.co/Drama/*",
+        "https://kisskh.me/Drama/*"
+      ],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/overlay/overlay.html",
+        "src/overlay/overlay.css",
+        "src/overlay/overlay.js",
+        "icons/*.png"
+      ],
+      "matches": [
+        "https://www.primevideo.com/*",
+        "https://www.amazon.com/*",
+        "https://www.netflix.com/*",
+        "https://www.disneyplus.com/*",
+        "https://www.hbomax.com/*",
+        "https://www.max.com/*",
+        "https://www.youtube.com/*",
+        "https://tv.apple.com/*"
+      ]
+    }
+  ],
+
+  "icons": {
+    "16":  "icons/icon16.png",
+    "32":  "icons/icon32.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
