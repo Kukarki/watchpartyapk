@@ -14,7 +14,7 @@ import Toast from 'react-native-toast-message';
 import { COLORS, SPACE, RADIUS, SHADOW } from '@/constants';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { login } from '@/services/auth';
+import { login, loginWithGoogle } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth.store';
 
 export default function LoginScreen() {
@@ -22,6 +22,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   function validate() {
@@ -32,6 +33,21 @@ export default function LoginScreen() {
     else if (password.length < 6) e.password = 'At least 6 characters';
     setErrors(e);
     return Object.keys(e).length === 0;
+  }
+
+  async function handleGoogleLogin() {
+    setGoogleLoading(true);
+    try {
+      const user = await loginWithGoogle();
+      setUser(user);
+      router.replace('/(app)');
+    } catch (err: any) {
+      if (!err?.message?.includes('cancelled')) {
+        Toast.show({ type: 'error', text1: 'Google sign-in failed', text2: err?.message });
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
   }
 
   async function handleLogin() {
@@ -121,6 +137,23 @@ export default function LoginScreen() {
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
+
+          {/* Google sign-in */}
+          <TouchableOpacity
+            style={styles.googleBtn}
+            onPress={handleGoogleLogin}
+            disabled={googleLoading}
+            activeOpacity={0.8}
+          >
+            {googleLoading ? (
+              <Text style={styles.googleText}>Connecting…</Text>
+            ) : (
+              <>
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleText}>Continue with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
           <Button
             title="Continue as Guest"
@@ -246,6 +279,29 @@ const styles = StyleSheet.create({
   dividerText: {
     color: COLORS.muted,
     fontSize: 13,
+  },
+
+  // ── Google ──
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACE.sm,
+    backgroundColor: '#fff',
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACE.md,
+    borderWidth: 1,
+    borderColor: '#dadce0',
+  },
+  googleIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4285F4',
+  },
+  googleText: {
+    color: '#3c4043',
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   // ── Footer ──

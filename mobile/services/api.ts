@@ -5,7 +5,7 @@ import { ChatMessage, QueueItem, Room, RoomMember, User } from '@/types';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 35000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -101,6 +101,9 @@ export const authApi = {
       .then((res) => ({ ...res, data: { ...res.data, user: mapUser(res.data.user) } })),
   guest: (username: string) =>
     api.post('/auth/guest', { displayName: username })
+      .then((res) => ({ ...res, data: { ...res.data, user: mapUser(res.data.user) } })),
+  supabaseCallback: (supabaseToken: string, displayName?: string, avatar?: string) =>
+    api.post('/auth/supabase-callback', { supabaseToken, displayName, avatar })
       .then((res) => ({ ...res, data: { ...res.data, user: mapUser(res.data.user) } })),
   me: () => api.get('/auth/me')
     .then((res) => ({ ...res, data: { ...res.data, user: mapUser(res.data.user) } })),

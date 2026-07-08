@@ -1,6 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { authApi } from './api';
 import { User } from '@/types';
+
+const SUPABASE_URL = 'https://kujeurfxcztsgkbpnysk.supabase.co';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
@@ -55,4 +59,29 @@ export async function loginAsGuest(username: string) {
 
 export async function logout() {
   await clearSession();
+}
+
+export async function loginWithGoogle(): Promise<User> {
+  const redirectUrl = Linking.createURL('auth/callback');
+  const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+
+  const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+
+  if (result.type !== 'success') {
+    throw new Error('Google sign-in was cancelled');
+  }
+
+  // Parse access_token from URL hash or query string
+  const parsed = Linking.parse(result.url);
+  const hash = result.url.split('#')[1] ?? '';
+  const hashParams = new URLSearchParams(hash);
+  const accessToken =
+    hashParams.get('access_token') ??
+    (parsed.queryParams?.access_token as string | undefined);
+
+  if (!accessToken) throw new Error('No access token returned from Google');
+
+  const { data } = await authApi.supabaseCallback(accessToken);
+  await saveSession(data.token, data.user);
+  return data.user as User;
 }
