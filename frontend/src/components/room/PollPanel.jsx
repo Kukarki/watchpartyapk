@@ -89,7 +89,7 @@ export default function PollPanel({ roomId }) {
       await pollApi.end(roomId, poll.id);
       setPoll((p) => p ? { ...p, is_active: false } : p);
       toast.success('Poll ended');
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const addOption = () => {
@@ -105,7 +105,7 @@ export default function PollPanel({ roomId }) {
           <p className="text-bright text-sm font-semibold">Polls</p>
           <p className="text-dim text-xs">Vote on what to watch</p>
         </div>
-        {isHost && !creating && !poll?.is_active && (
+        {!creating && !poll?.is_active && (
           <button onClick={() => setCreating(true)}
                   className="btn-primary text-xs px-3 py-1.5">
             + Create Poll
@@ -209,7 +209,7 @@ export default function PollPanel({ roomId }) {
                     {poll.is_active ? '🟢 Active' : '🔴 Ended'} · {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
                   </p>
                 </div>
-                {isHost && poll.is_active && (
+                {poll.is_active && (
                   <button
                     onClick={handleEnd}
                     className="btn-ghost text-xs px-3 py-1.5 border border-danger/30

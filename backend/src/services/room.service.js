@@ -1,16 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getSupabaseAdmin, isSupabaseConnected } from '../config/supabase.js';
+import { getSupabaseAdmin } from '../config/supabase.js';
 import { logger } from '../utils/logger.js';
-
-const memory = {
-  rooms: new Map(),
-  members: new Map(),
-  messages: new Map(),
-};
 
 class RoomService {
   get sb() {
-    if (!isSupabaseConnected()) return null;
     return getSupabaseAdmin();
   }
 
@@ -18,27 +11,6 @@ class RoomService {
 
   async createRoom({ name, hostId, hostName = '', videoUrl = '' }) {
     const roomId = uuidv4().slice(0, 8).toUpperCase();
-
-    if (!this.sb) {
-      const now = new Date().toISOString();
-      const room = {
-        room_id: roomId,
-        name,
-        host_id: hostId,
-        host_name: hostName,
-        is_public: true,
-        current_url: videoUrl,
-        is_playing: false,
-        video_position: 0,
-        state_updated_at: now,
-        created_at: now,
-      };
-      memory.rooms.set(roomId, room);
-      memory.members.set(roomId, new Map());
-      memory.messages.set(roomId, []);
-      logger.info('Room created in memory', { roomId, hostId });
-      return this._mapRoom(room);
-    }
 
     const { data, error } = await this.sb
       .from('rooms')
@@ -62,11 +34,6 @@ class RoomService {
   }
 
   async getRoomWithState(roomId) {
-    if (!this.sb) {
-      const room = memory.rooms.get(roomId);
-      return room ? this._mapRoom(room) : null;
-    }
-
     const { data, error } = await this.sb
       .from('rooms')
       .select('*')
@@ -83,13 +50,6 @@ class RoomService {
     if (currentTime !== undefined) patch.video_position  = currentTime;
     if (videoUrl    !== undefined) patch.current_url     = videoUrl;
 
-    if (!this.sb) {
-      const room = memory.rooms.get(roomId);
-      if (!room) return;
-      Object.assign(room, patch);
-      return;
-    }
-
     const { error } = await this.sb
       .from('rooms')
       .update(patch)
@@ -102,21 +62,6 @@ class RoomService {
 
   async addMember(roomId, { userId, displayName, avatar = '', isHost = false }) {
     const now = new Date().toISOString();
-
-    if (!this.sb) {
-      if (!memory.members.has(roomId)) memory.members.set(roomId, new Map());
-      memory.members.get(roomId).set(userId, {
-        room_id: roomId,
-        user_id: userId,
-        display_name: displayName,
-        avatar,
-        is_host: isHost,
-        joined_at: now,
-      });
-      logger.info('Member joined in-memory room', { roomId, userId });
-      return;
-    }
-
     const { error } = await this.sb
       .from('room_members')
       .upsert(
@@ -142,12 +87,6 @@ class RoomService {
   }
 
   async removeMember(roomId, userId) {
-    if (!this.sb) {
-      memory.members.get(roomId)?.delete(userId);
-      logger.info('Member left in-memory room', { roomId, userId });
-      return;
-    }
-
     const { error } = await this.sb
       .from('room_members')
       .delete()
@@ -159,13 +98,6 @@ class RoomService {
   }
 
   async listPublicRooms(limit = 20) {
-    if (!this.sb) {
-      return Array.from(memory.rooms.values())
-        .filter((room) => room.is_public)
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, limit);
-    }
-
     const { data, error } = await this.sb
       .from('rooms')
       .select('room_id, name, host_id, host_name, is_public, created_at')
@@ -178,12 +110,6 @@ class RoomService {
   }
 
   async getRoomMembers(roomId) {
-    if (!this.sb) {
-      return Array.from(memory.members.get(roomId)?.values() || [])
-        .sort((a, b) => new Date(a.joined_at) - new Date(b.joined_at))
-        .map(this._mapMember);
-    }
-
     const { data, error } = await this.sb
       .from('room_members')
       .select('*')
@@ -197,23 +123,6 @@ class RoomService {
   // ── Chat ───────────────────────────────────────────────────────────────────
 
   async addChatMessage(roomId, { userId, displayName, avatar = '', content, type = 'text' }) {
-    if (!this.sb) {
-      const message = {
-        id: uuidv4(),
-        room_id: roomId,
-        user_id: userId,
-        display_name: displayName,
-        avatar,
-        content,
-        type,
-        reactions: {},
-        created_at: new Date().toISOString(),
-      };
-      if (!memory.messages.has(roomId)) memory.messages.set(roomId, []);
-      memory.messages.get(roomId).push(message);
-      return this._mapMessage(message);
-    }
-
     const { data, error } = await this.sb
       .from('chat_messages')
       .insert({
@@ -232,12 +141,6 @@ class RoomService {
   }
 
   async getChatHistory(roomId, limit = 50) {
-    if (!this.sb) {
-      return (memory.messages.get(roomId) || [])
-        .slice(-limit)
-        .map(this._mapMessage);
-    }
-
     const { data, error } = await this.sb
       .from('chat_messages')
       .select('*')
@@ -257,22 +160,6 @@ class RoomService {
    * Returns the updated reactions object { emoji: [userId, ...], ... }
    */
   async applyReactionDB(messageId, emoji, userId) {
-    if (!this.sb) {
-      for (const messages of memory.messages.values()) {
-        const message = messages.find((item) => item.id === messageId);
-        if (!message) continue;
-
-        const users = new Set(message.reactions?.[emoji] || []);
-        if (users.has(userId)) users.delete(userId);
-        else users.add(userId);
-
-        message.reactions = { ...(message.reactions || {}), [emoji]: Array.from(users) };
-        if (!message.reactions[emoji].length) delete message.reactions[emoji];
-        return message.reactions;
-      }
-      return null;
-    }
-
     try {
       const { data, error } = await this.sb.rpc('toggle_chat_reaction', {
         p_message_id: messageId,

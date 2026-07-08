@@ -25,17 +25,19 @@ export default function ChatPanel() {
   }, [messages, typingList]);
 
   const others = members.filter((m) => m.userId !== user?.userId);
+  const selfMember = members.find((m) => m.userId === user?.userId);
+
   return (
     <div className="h-full flex flex-col bg-surface">
 
-      {/* ── Who's in the room ── */}
-      <div className="px-4 py-3 border-b border-border shrink-0">
+      {/* ── Who's in the room (compact) ── */}
+      <div className="px-4 py-2 border-b border-border shrink-0 max-h-[88px] overflow-y-auto">
         {members.length === 0 ? (
           <p className="text-dim text-xs text-center py-1">Connecting...</p>
         ) : (
           <div className="space-y-2">
             {/* All members as chips */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {members.map((m) => {
                 const isSelf = m.userId === user?.userId;
                 return (
@@ -95,6 +97,8 @@ export default function ChatPanel() {
         {messages.map((message, idx) => {
           const isSelf = message.userId === user?.userId;
           const prevMsg = messages[idx - 1];
+          const nextMsg = messages[idx + 1];
+
           const isGrouped =
             prevMsg?.userId === message.userId &&
             message.createdAt - prevMsg.createdAt < 60_000;

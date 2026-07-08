@@ -10,24 +10,6 @@ export function AuthProvider({ children }) {
   const { token, user, isAuthenticated, setAuth, logout: storeLogout } = useAuthStore();
   const navigate = useNavigate();
 
-  /**
-   * guestLogin — get a fresh token and SET it atomically.
-   * Never clears the old token first — that would disconnect the socket.
-   * The socket reconnects automatically when the token changes.
-   */
-  const guestLogin = useCallback(async (displayName) => {
-    try {
-      const data = await userApi.guestLogin(displayName);
-      // setAuth replaces old token in one atomic update
-      setAuth(data.token, data.user);
-      return data;
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed';
-      toast.error(msg);
-      throw err;
-    }
-  }, [setAuth]);
-
   const logout = useCallback(() => {
     storeLogout();
     navigate('/');
@@ -37,7 +19,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       token, user, isAuthenticated,
-      guestLogin, logout,
+      logout,
     }}>
       {children}
     </AuthContext.Provider>

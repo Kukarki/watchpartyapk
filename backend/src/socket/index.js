@@ -5,6 +5,7 @@ import { userSocketMap } from './userMap.js';
 import { registerRoomHandlers } from './room.socket.js';
 import { registerVoiceHandlers } from './voice.socket.js';
 import { registerCallHandlers } from './callHandler.js';
+import { registerFriendHandlers } from './friends.socket.js';
 import { logger } from '../utils/logger.js';
 
 export function initSocketServer(httpServer) {
@@ -19,42 +20,52 @@ export function initSocketServer(httpServer) {
     transports:   ['websocket', 'polling'],
   });
 
-  // Auth middleware — never crash the connection
+  // Auth middleware.
+  // SECURITY (C2): if a token is PRESENT but invalid/expired, REJECT the
+  // connection instead of silently downgrading to an anonymous guest.
+  // Only allow the anonymous-guest fallback when NO token was supplied at all.
   io.use((socket, next) => {
-    try {
-      const token = socket.handshake.auth?.token;
-      if (token) {
-        try {
-          const decoded = verifyToken(token);
-          socket.user = {
-            userId:      decoded.userId,
-            displayName: decoded.displayName || 'Guest',
-            avatar:      decoded.avatar || '',
-          };
-        } catch {
-          socket.user = { userId: `guest-${socket.id}`, displayName: 'Guest', avatar: '' };
-        }
-      } else {
-        socket.user = { userId: `guest-${socket.id}`, displayName: 'Guest', avatar: '' };
+    const token = socket.handshake.auth?.token;
+
+    if (token) {
+      try {
+        const decoded = verifyToken(token);
+        socket.user = {
+          userId:      decoded.userId,
+          displayName: decoded.displayName || 'Guest',
+          avatar:      decoded.avatar || '',
+          provider:    decoded.provider || 'guest',
+          authed:      true,
+        };
+        return next();
+      } catch (err) {
+        // A token was provided and it failed verification → refuse.
+        logger.warn('Socket auth rejected: invalid token', { socketId: socket.id });
+        return next(new Error('unauthorized'));
       }
-      return next();
-    } catch (err) {
-      logger.error('Socket auth middleware error', { message: err.message });
-      socket.user = { userId: `guest-${socket.id}`, displayName: 'Guest', avatar: '' };
-      return next();
     }
+
+    // No token at all → anonymous guest (read-only-ish; sensitive actions gated downstream)
+    socket.user = {
+      userId:      `guest-${socket.id}`,
+      displayName: 'Guest',
+      avatar:      '',
+      provider:    'guest',
+      authed:      false,
+    };
+    return next();
   });
 
   io.on('connection', (socket) => {
     const { userId } = socket.user;
 
-    // Track socket for WebRTC relay (replaces Redis user:socket keys)
     userSocketMap.set(userId, socket.id);
     logger.info('Socket connected', { socketId: socket.id, userId });
 
     registerRoomHandlers(io, socket);
     registerVoiceHandlers(io, socket);
     registerCallHandlers(io, socket);
+    registerFriendHandlers(io, socket);
 
     socket.on('ping', () => socket.emit('pong'));
 

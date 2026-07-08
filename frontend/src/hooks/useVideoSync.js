@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useRoomActions } from '@/contexts/RoomContext.jsx';
+import { useAuthStore } from '@/store/authStore.js';
 
 const SYNC_THRESHOLD_S = 2; // seconds before we force a seek
 
@@ -12,6 +13,7 @@ const SYNC_THRESHOLD_S = 2; // seconds before we force a seek
 export function useVideoSync(videoRef) {
   const { videoState } = useRoomStore();
   const { sendPlay, sendPause, sendSeek } = useRoomActions();
+  const { user } = useAuthStore();
 
   // Track whether the current action is local (ours) or remote
   const isLocalAction = useRef(false);

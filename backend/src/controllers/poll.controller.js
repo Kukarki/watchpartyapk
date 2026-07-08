@@ -1,4 +1,11 @@
 import { getSupabaseAdmin, isSupabaseConnected } from '../config/supabase.js';
+import { roomService } from '../services/room.service.js';
+
+// Authorization helper: is this user the host of the room?
+async function isRoomHost(roomId, userId) {
+  const room = await roomService.getRoomWithState(roomId);
+  return !!(room && room.hostId === userId);
+}
 
 export async function createPoll(req, res, next) {
   try {
@@ -11,6 +18,17 @@ export async function createPoll(req, res, next) {
     if (!options?.length || options.length < 2) {
       return res.status(400).json({ error: 'At least 2 options required' });
     }
+    if (options.length > 6) {
+      return res.status(400).json({ error: 'At most 6 options allowed' });
+    }
+
+    // SECURITY: only the room host may create a poll.
+    if (!(await isRoomHost(roomId, userId))) {
+      return res.status(403).json({ error: 'Only the host can create a poll' });
+    }
+
+    // Clamp duration to a sane 1–30 min range.
+    const safeDuration = Math.min(Math.max(parseInt(durationMinutes, 10) || 5, 1), 30);
 
     const sb = getSupabaseAdmin();
 
@@ -19,7 +37,7 @@ export async function createPoll(req, res, next) {
       .update({ is_active: false })
       .eq('room_id', roomId).eq('is_active', true);
 
-    const endsAt = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+    const endsAt = new Date(Date.now() + safeDuration * 60 * 1000).toISOString();
 
     const { data: poll, error } = await sb
       .from('polls')
@@ -129,8 +147,21 @@ export async function getActivePoll(req, res, next) {
 export async function endPoll(req, res, next) {
   try {
     if (!isSupabaseConnected()) return res.status(503).json({ error: 'DB not configured' });
-    const { pollId } = req.params;
+    const { roomId, pollId } = req.params;
+    const { userId } = req.user;
     const sb = getSupabaseAdmin();
+
+    // Load the poll first so we can verify ownership.
+    const { data: poll, error: loadErr } = await sb
+      .from('polls').select('id, room_id, created_by').eq('id', pollId).single();
+    if (loadErr || !poll) return res.status(404).json({ error: 'Poll not found' });
+
+    // SECURITY: only the poll creator OR the room host may end it.
+    const creator = poll.created_by === userId;
+    const host    = await isRoomHost(poll.room_id || roomId, userId);
+    if (!creator && !host) {
+      return res.status(403).json({ error: 'Not allowed to end this poll' });
+    }
 
     const { data, error } = await sb
       .from('polls').update({ is_active: false }).eq('id', pollId)

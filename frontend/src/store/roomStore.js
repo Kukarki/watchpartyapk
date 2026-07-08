@@ -26,7 +26,7 @@ export const useRoomStore = create((set, get) => ({
   },
 
   // UI
-  isChatOpen: true,
+  isChatOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
   isVoicePanelOpen: true,
 
   // ── Actions ─────────────────────────────────────────────

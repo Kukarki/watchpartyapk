@@ -7,18 +7,18 @@ import { generateAvatar } from '../utils/avatar.js';
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helper: upsert a row into `profiles` (non-fatal — DB down ≠ login fail)
 // ─────────────────────────────────────────────────────────────────────────────
-async function upsertProfile(sb, { id, displayName, avatarUrl, email = null, provider }) {
-  const { error } = await sb.from('profiles').upsert(
-    {
-      id,
-      display_name: displayName,
-      avatar_url:   avatarUrl,
-      email:        email || null,
-      provider,
-      last_seen_at: new Date().toISOString(),
-    },
-    { onConflict: 'id' }
-  );
+async function upsertProfile(sb, { id, displayName, avatarUrl, email = null, provider, dateOfBirth = null, ageVerified = null }) {
+  const row = {
+    id,
+    display_name: displayName,
+    avatar_url:   avatarUrl,
+    email:        email || null,
+    provider,
+    last_seen_at: new Date().toISOString(),
+  };
+  if (dateOfBirth !== null) row.date_of_birth = dateOfBirth;
+  if (ageVerified !== null) row.age_verified  = ageVerified;
+  const { error } = await sb.from('profiles').upsert(row, { onConflict: 'id' });
   if (error) logger.warn('upsertProfile failed', { id, provider, error: error.message });
 }
 
@@ -103,52 +103,58 @@ export async function guestLogin(req, res, next) {
 export async function register(req, res, next) {
   try {
     if (!isSupabaseConnected()) {
-      return res.status(503).json({ error: 'Database not configured. Use guest login.' });
+      return res.status(503).json({ error: 'Database not configured.' });
     }
-
-    const { displayName, email, password } = req.body;
-    if (!displayName?.trim())              return res.status(400).json({ error: 'Name is required' });
-    if (!email?.trim())                    return res.status(400).json({ error: 'Email is required' });
-    if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const { displayName, email, password, dateOfBirth } = req.body;
+    if (!displayName?.trim())             return res.status(400).json({ error: 'Name is required' });
+    if (!email?.trim())                   return res.status(400).json({ error: 'Email is required' });
+    if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (!dateOfBirth)                     return res.status(400).json({ error: 'Date of birth is required' });
+    const dob = new Date(dateOfBirth);
+    if (isNaN(dob.getTime())) return res.status(400).json({ error: 'Invalid date of birth' });
+    const ageYears = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    if (ageYears < 18)  return res.status(403).json({ error: 'You must be 18 or older to create an account' });
+    if (ageYears > 120) return res.status(400).json({ error: 'Please enter a valid date of birth' });
 
     const sb   = getSupabaseAdmin();
     const name = displayName.trim().slice(0, 30);
+    const cleanEmail = email.toLowerCase().trim();
 
-    // 1. Create Supabase Auth user
-    const { data, error } = await sb.auth.admin.createUser({
-      email:         email.toLowerCase().trim(),
+    // Use signUp() so Supabase creates an UNCONFIRMED user and sends the
+    // confirmation email itself (via the configured Resend SMTP).
+    const redirectTo = (process.env.PUBLIC_URL || 'https://sandipwatch7.dedyn.io') + '/login';
+    const { data, error } = await sb.auth.signUp({
+      email:    cleanEmail,
       password,
-      email_confirm: true,                          // skip email verification for now
-      user_metadata: { full_name: name },
+      options: {
+        data: { full_name: name, date_of_birth: dob.toISOString().slice(0,10) },
+        emailRedirectTo: redirectTo,
+      },
     });
 
     if (error) {
-      if (error.message?.toLowerCase().includes('already')) {
-        return res.status(409).json({ error: 'Email already registered. Try signing in instead.' });
+      if (error.message?.toLowerCase().includes('already') ||
+          error.message?.toLowerCase().includes('registered')) {
+        return res.status(409).json({ error: 'Email already registered. Try signing in, or check your inbox to confirm.' });
       }
       throw error;
     }
 
-    const avatar = generateAvatar(name);
+    // Store profile now (id from signUp). Age is verified at signup time.
+    if (data.user?.id) {
+      const avatar = generateAvatar(name);
+      await upsertProfile(sb, {
+        id: data.user.id, displayName: name, avatarUrl: avatar,
+        email: cleanEmail, provider: 'email',
+        dateOfBirth: dob.toISOString().slice(0, 10), ageVerified: true,
+      });
+    }
 
-    // 2. Create profiles row (matches Supabase Auth UUID)
-    await upsertProfile(sb, {
-      id: data.user.id, displayName: name, avatarUrl: avatar,
-      email: email.toLowerCase().trim(), provider: 'email',
+    logger.info('User signed up (pending email confirmation)', { email: cleanEmail });
+    res.status(201).json({
+      pendingConfirmation: true,
+      message: 'Account created! Check your email for the confirmation link, then sign in.',
     });
-
-    const userPayload = {
-      userId:      data.user.id,
-      displayName: name,
-      email:       email.toLowerCase().trim(),
-      avatar,
-      provider:    'email',
-      role:        'user',
-    };
-
-    const token = signToken(userPayload);
-    logger.info('User registered', { userId: data.user.id, email: userPayload.email });
-    res.status(201).json({ token, user: userPayload });
   } catch (err) {
     next(err);
   }
@@ -177,6 +183,10 @@ export async function login(req, res, next) {
     });
 
     if (error || !data.user) {
+      const msg = error?.message?.toLowerCase() || '';
+      if (msg.includes('not confirmed') || msg.includes('email')) {
+        return res.status(403).json({ error: 'Please confirm your email first. Check your inbox for the confirmation link.' });
+      }
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -257,16 +267,20 @@ export async function supabaseCallback(req, res, next) {
                         sbUser.user_metadata?.picture ||
                         generateAvatar(userId);
 
-    // Upsert profile (creates on first OAuth login, updates on subsequent)
+    // Check existing age verification status before upsert
+    const { data: existing } = await sb.from('profiles')
+      .select('age_verified').eq('id', userId).single();
+    const ageVerified = existing?.age_verified === true;
+
     await upsertProfile(sb, {
       id: userId, displayName: name, avatarUrl, email, provider: 'google',
     });
 
-    const userPayload = { userId, displayName: name, email, avatar: avatarUrl, provider: 'google', role: 'user' };
+    const userPayload = { userId, displayName: name, email, avatar: avatarUrl, provider: 'google', role: 'user', ageVerified };
     const token = signToken(userPayload);
 
-    logger.info('Google OAuth login', { userId, email });
-    res.json({ token, user: userPayload });
+    logger.info('Google OAuth login', { userId, email, ageVerified });
+    res.json({ token, user: userPayload, ageVerified });
   } catch (err) {
     next(err);
   }
@@ -313,6 +327,33 @@ export async function updateProfile(req, res, next) {
         role:        'user',
       },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+// ── Age verification for OAuth users (one-time DOB confirmation) ──
+export async function verifyAge(req, res, next) {
+  try {
+    if (!isSupabaseConnected()) return res.status(503).json({ error: 'Database not configured' });
+    const { userId } = req.user;
+    const { dateOfBirth } = req.body;
+    if (!dateOfBirth) return res.status(400).json({ error: 'Date of birth is required' });
+    const dob = new Date(dateOfBirth);
+    if (isNaN(dob.getTime())) return res.status(400).json({ error: 'Invalid date of birth' });
+    const ageYears = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    if (ageYears < 18)  return res.status(403).json({ error: 'You must be 18 or older' });
+    if (ageYears > 120) return res.status(400).json({ error: 'Please enter a valid date of birth' });
+
+    const sb = getSupabaseAdmin();
+    const { error } = await sb.from('profiles').update({
+      date_of_birth: dob.toISOString().slice(0, 10),
+      age_verified:  true,
+    }).eq('id', userId);
+    if (error) throw error;
+
+    res.json({ ageVerified: true });
   } catch (err) {
     next(err);
   }

@@ -6,6 +6,13 @@ import toast from 'react-hot-toast';
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  ...(import.meta.env.VITE_TURN_URL
+    ? [{
+        urls:       import.meta.env.VITE_TURN_URL.split(','),
+        username:   import.meta.env.VITE_TURN_USERNAME,
+        credential: import.meta.env.VITE_TURN_CREDENTIAL,
+      }]
+    : []),
 ];
 
 export default function ScreenShare({ roomId }) {
@@ -137,7 +144,7 @@ export default function ScreenShare({ roomId }) {
     const onIce = async ({ fromId, candidate }) => {
       const pc = peersRef.current[fromId];
       if (pc && candidate) {
-        try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+        try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) { console.error(err); }
       }
     };
 

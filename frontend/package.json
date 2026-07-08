@@ -18,6 +18,7 @@
     "axios": "^1.7.2",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "emoji-picker-react": "^4.19.1",
     "hls.js": "^1.6.16",
     "nanoid": "^5.0.7",
     "react": "^18.3.1",

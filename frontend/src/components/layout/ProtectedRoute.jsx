@@ -26,17 +26,11 @@ export default function ProtectedRoute() {
     );
   }
 
-  // Always prompt for a display name when entering a room, so invite-link guests
-  // always see the join screen. We use sessionStorage to avoid re-prompting on
-  // simple page refreshes — the flag is cleared when the tab/browser closes.
+  // Sign-in is required for everything now (no guests). Room access is simply:
+  // logged in -> allowed. This survives refresh and removes the fragile
+  // sessionStorage verify flag left over from the guest era.
   const roomMatch = location.pathname.match(/\/room\/([A-Za-z0-9]+)/);
   const roomId = roomMatch?.[1];
-  if (roomId) {
-    const verified = sessionStorage.getItem(`room_verified_${roomId}`);
-    if (!verified) {
-      return <Navigate to={`/join/${roomId}`} replace />;
-    }
-  }
 
   if (!isAuthenticated) {
     if (roomId) return <Navigate to={`/join/${roomId}`} replace />;

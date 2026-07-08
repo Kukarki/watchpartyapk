@@ -41,7 +41,7 @@ export function RoomProvider({ children }) {
 
       'room:error': ({ code, message }) => {
         toast.error(message || 'Room error');
-        if (code === 'NOT_FOUND') navigate('/lobby');
+        if (code === 'NOT_FOUND') navigate('/home');
       },
 
       'video:play': ({ currentTime, timestamp }) => {

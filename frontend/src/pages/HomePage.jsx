@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { roomApi } from '@/api/room.api.js';
+import { useFriendsStore } from '@/store/friendsStore.js';
+import AppShell from '@/components/layout/AppShell.jsx';
+import Avatar from '@/components/ui/Avatar.jsx';
+import toast from 'react-hot-toast';
 
 export const PLATFORMS = [
   {
@@ -91,102 +96,188 @@ export const PLATFORMS = [
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const { friends, onlineFriendIds } = useFriendsStore();
+
   const [imgErrors, setImgErrors] = useState({});
   const [hovered, setHovered] = useState(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [roomName, setRoomName] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
-  const handlePlatformClick = (platformId) => {
-    navigate(`/platform/${platformId}`);
+  const handlePlatformClick = (platformId) => navigate(`/platform/${platformId}`);
+  const handleImgError = (id) => setImgErrors((prev) => ({ ...prev, [id]: true }));
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!roomName.trim()) return;
+    setCreating(true);
+    try {
+      const { room } = await roomApi.createRoom({ name: roomName, videoUrl });
+      navigate(`/room/${room.id}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create room');
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const handleImgError = (id) => {
-    setImgErrors((prev) => ({ ...prev, [id]: true }));
+  const handleJoin = (e) => {
+    e.preventDefault();
+    const code = joinCode.trim().toUpperCase();
+    if (!code) return;
+    navigate(`/join/${code}`);
   };
+
+  const onlineSet = new Set(onlineFriendIds);
+  const onlineFriends = friends.filter((f) => onlineSet.has(f.userId)).slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-void flex flex-col overflow-hidden">
-      {/* Ambient glows */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px]
-                        opacity-40 blur-[140px] rounded-full"
-             style={{ background: 'radial-gradient(ellipse, rgba(245,166,35,0.15) 0%, transparent 70%)' }} />
-        <div className="absolute bottom-0 right-0 w-[600px] h-[400px]
-                        opacity-30 blur-[120px] rounded-full"
-             style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.15) 0%, transparent 70%)' }} />
-      </div>
-
-      {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 sm:px-10 py-5
-                       max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl">🎬</span>
-          <span className="font-display font-bold text-xl text-bright">
-            Watch<span className="text-gradient">Party</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/join')}
-            className="btn-ghost text-sm px-4 py-2 border border-border"
-          >
-            Join Room
-          </button>
-          <button
-            onClick={() => navigate(isAuthenticated ? '/lobby' : '/join')}
-            className="btn-primary text-sm"
-          >
-            {isAuthenticated ? 'My Rooms →' : 'Get Started →'}
-          </button>
-        </div>
-      </nav>
-
-      <main className="relative z-10 flex-1 flex flex-col items-center px-6 pt-10 pb-24
-                        max-w-7xl mx-auto w-full">
-
-        {/* Live badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full
-                         bg-amber/10 border border-amber/20 text-amber text-xs font-mono
-                         mb-8 animate-fade-in">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
-          LIVE · Real-time sync across all devices
+    <AppShell>
+      <main className="max-w-6xl mx-auto px-6 py-10">
+        <div className="mb-10 animate-slide-up">
+          <h1 className="font-display font-bold text-3xl sm:text-4xl text-bright mb-2">
+            Good to see you, <span className="text-gradient">{user?.displayName}</span>
+          </h1>
+          <p className="text-sub">Start a new watch party or jump into an existing one.</p>
         </div>
 
-        {/* Headline */}
-        <h1 className="font-display font-extrabold text-center
-                        text-5xl sm:text-6xl md:text-7xl
-                        text-bright leading-[0.95] tracking-tight mb-5
-                        animate-slide-up max-w-4xl"
-            style={{ animationDelay: '0.05s' }}>
-          Watch together.
-          <br />
-          <span className="text-gradient">Feel together.</span>
-        </h1>
+        <div className="grid md:grid-cols-2 gap-6 mb-8 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+          {/* Create Room */}
+          <div className="card p-8 hover:border-amber/30 transition-colors duration-300">
+            <div className="text-4xl mb-4">✨</div>
+            <h2 className="font-display font-semibold text-xl text-bright mb-2">Create a Room</h2>
+            <p className="text-sub text-sm mb-6">Host a watch party. Share the room code with friends.</p>
 
-        <p className="text-sub text-center text-lg sm:text-xl max-w-2xl leading-relaxed mb-5
-                       animate-slide-up"
-           style={{ animationDelay: '0.1s' }}>
-          Pick your streaming service, create a room, and invite friends.
-          Everyone's playback stays in perfect sync — automatically.
+            {!showCreate ? (
+              <button onClick={() => setShowCreate(true)} className="btn-primary">
+                Create Room
+              </button>
+            ) : (
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div>
+                  <label className="block text-sub text-xs font-mono uppercase tracking-widest mb-1.5">
+                    Room Name *
+                  </label>
+                  <input
+                    type="text"
+                    className="input-base"
+                    placeholder="Friday Night Movies"
+                    value={roomName}
+                    onChange={(e) => setRoomName(e.target.value)}
+                    maxLength={50}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sub text-xs font-mono uppercase tracking-widest mb-1.5">
+                    Video URL <span className="text-dim normal-case">(optional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    className="input-base"
+                    placeholder="https://example.com/video.mp4"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="submit"
+                    disabled={creating || !roomName.trim()}
+                    className="btn-primary flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {creating ? 'Creating...' : 'Create →'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreate(false)}
+                    className="btn-ghost border border-border"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Join Room */}
+          <div className="card p-8 hover:border-amber/30 transition-colors duration-300">
+            <div className="text-4xl mb-4">🔗</div>
+            <h2 className="font-display font-semibold text-xl text-bright mb-2">Join a Room</h2>
+            <p className="text-sub text-sm mb-6">Enter a room code to watch with friends.</p>
+
+            <form onSubmit={handleJoin} className="space-y-4">
+              <div>
+                <label className="block text-sub text-xs font-mono uppercase tracking-widest mb-1.5">
+                  Room Code
+                </label>
+                <input
+                  type="text"
+                  className="input-base font-mono uppercase tracking-widest text-lg"
+                  placeholder="A1B2C3D4"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  maxLength={8}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!joinCode.trim()}
+                className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Join Room →
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-10 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          {/* Friends online strip */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display font-semibold text-bright text-base">Friends Online</h2>
+              <button onClick={() => navigate('/friends')} className="text-amber text-xs hover:underline">
+                See all →
+              </button>
+            </div>
+            {onlineFriends.length === 0 ? (
+              <p className="text-dim text-xs">No friends online right now.</p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {onlineFriends.map((f) => (
+                  <div key={f.userId} className="flex items-center gap-2">
+                    <div className="relative shrink-0">
+                      <Avatar src={f.avatar} name={f.displayName} size="sm" />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full
+                                         border-2 border-surface bg-online" />
+                    </div>
+                    <span className="text-xs text-sub">{f.displayName}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent rooms — placeholder */}
+          <div className="card p-6">
+            <h2 className="font-display font-semibold text-bright text-base mb-4">Recent Rooms</h2>
+            <p className="text-dim text-xs">Coming soon — your recently visited rooms will show up here.</p>
+          </div>
+        </div>
+
+        <h2 className="font-display font-bold text-bright text-xl mb-1">
+          Choose What to Watch
+        </h2>
+        <p className="text-dim text-xs mb-5">
+          Pick a platform to start a synced session.
         </p>
 
-        {/* How it works */}
-        <div className="flex flex-wrap justify-center items-center gap-2 text-xs
-                         text-dim font-mono mb-12 animate-fade-in"
-             style={{ animationDelay: '0.15s' }}>
-          {['Pick a platform', 'Install extension (once)', 'Create a room', 'Invite friends', 'Watch together']
-            .map((step, i) => (
-              <span key={step} className="flex items-center gap-2">
-                <span className="text-amber font-bold">{i + 1}</span>
-                <span>{step}</span>
-                {i < 4 && <span className="text-border">→</span>}
-              </span>
-            ))}
-        </div>
-
         {/* Platform grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-4xl mb-16
-                         animate-slide-up"
-             style={{ animationDelay: '0.2s' }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full mb-4 animate-slide-up"
+             style={{ animationDelay: '0.15s' }}>
           {PLATFORMS.map((platform) => (
             <div
               key={platform.id}
@@ -246,23 +337,7 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-
-        {/* Feature cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-4xl animate-slide-up"
-             style={{ animationDelay: '0.3s' }}>
-          {[
-            { icon: '⚡', title: 'Frame-perfect sync', desc: 'Play, pause and seek stay in lock-step for everyone in the room.' },
-            { icon: '💬', title: 'Live chat & reactions', desc: 'WhatsApp-style chat with emoji reactions that float on your screen.' },
-            { icon: '🎙️', title: 'Built-in voice', desc: 'Discord-style voice rooms so you can talk while you watch.' },
-          ].map(({ icon, title, desc }) => (
-            <div key={title} className="card p-6 text-left hover:border-amber/30 transition-colors duration-300">
-              <div className="text-2xl mb-3">{icon}</div>
-              <h3 className="font-display font-semibold text-bright text-sm mb-1.5">{title}</h3>
-              <p className="text-dim text-xs leading-relaxed">{desc}</p>
-            </div>
-          ))}
-        </div>
       </main>
-    </div>
+    </AppShell>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
 import { useRoomStore } from '@/store/roomStore.js';
 

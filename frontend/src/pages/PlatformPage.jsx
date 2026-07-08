@@ -5,8 +5,8 @@ import { useAuthStore } from '@/store/authStore.js';
 import { roomApi } from '@/api/room.api.js';
 import { PLATFORMS } from './HomePage.jsx';
 
-const API_BASE  = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
-const SERVER_URL = API_BASE.replace('/api/v1', '');
+const API_BASE  = import.meta.env.VITE_API_URL || '/api/v1';
+const SERVER_URL = (import.meta.env.VITE_SOCKET_URL || window.location.origin);
 
 // Platforms whose videos can be embedded via IFrame — no browser extension required
 const EMBEDDABLE = ['youtube'];
@@ -14,7 +14,7 @@ const EMBEDDABLE = ['youtube'];
 export default function PlatformPage() {
   const { platformId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, guestLogin, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { token } = useAuthStore();
 
   const platform      = PLATFORMS.find((p) => p.id === platformId);
@@ -53,7 +53,6 @@ export default function PlatformPage() {
     setLoading(true);
     setError('');
     try {
-      await guestLogin(name);
       setStep('ready');
     } catch {
       setError('Something went wrong');
@@ -150,7 +149,7 @@ export default function PlatformPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <p className="text-bright text-sm font-medium mb-1">Enter your name to continue</p>
-                <p className="text-dim text-xs mb-4">No account required — guest access is free</p>
+                <p className="text-dim text-xs mb-4">Signed in and ready</p>
                 <label className="block text-sub text-xs font-mono uppercase tracking-widest mb-2">
                   Display Name
                 </label>

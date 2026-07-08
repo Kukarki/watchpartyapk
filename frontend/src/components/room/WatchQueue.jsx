@@ -66,7 +66,7 @@ export default function WatchQueue({ roomId }) {
     try {
       const data = await queueApi.voteItem(roomId, itemId);
       setQueue((q) => q.map((i) => i.id === itemId ? data.item : i));
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const handleRemove = async (itemId) => {
@@ -74,7 +74,7 @@ export default function WatchQueue({ roomId }) {
     try {
       await queueApi.removeItem(roomId, itemId);
       setQueue((q) => q.filter((i) => i.id !== itemId));
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   // Play a specific item — changes the video for everyone in the room

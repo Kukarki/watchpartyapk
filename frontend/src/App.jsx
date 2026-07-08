@@ -3,24 +3,28 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider }    from '@/contexts/AuthContext.jsx';
 import { SocketProvider }  from '@/contexts/SocketContext.jsx';
 import { RoomProvider }    from '@/contexts/RoomContext.jsx';
+import { FriendsProvider } from '@/contexts/FriendsContext.jsx';
 import ProtectedRoute      from '@/components/layout/ProtectedRoute.jsx';
+import ProfilePage         from '@/pages/ProfilePage.jsx';
 import ErrorBoundary       from '@/components/layout/ErrorBoundary.jsx';
+import LandingPage         from '@/pages/LandingPage.jsx';
 import HomePage            from '@/pages/HomePage.jsx';
 import JoinPage            from '@/pages/JoinPage.jsx';
 import LoginPage           from '@/pages/LoginPage.jsx';
 import AuthCallbackPage    from '@/pages/AuthCallbackPage.jsx';
 import RoomPage            from '@/pages/RoomPage.jsx';
-import LobbyPage           from '@/pages/LobbyPage.jsx';
 import PlatformPage        from '@/pages/PlatformPage.jsx';
+import FriendsPage         from '@/pages/FriendsPage.jsx';
 
 export default function App() {
   return (
     <ErrorBoundary>
     <AuthProvider>
       <SocketProvider>
+      <FriendsProvider>
         <Routes>
           {/* Public */}
-          <Route path="/"                   element={<HomePage />} />
+          <Route path="/"                   element={<LandingPage />} />
           <Route path="/join"               element={<JoinPage />} />
           <Route path="/join/:roomId"       element={<JoinPage />} />
           <Route path="/login"              element={<LoginPage />} />
@@ -29,7 +33,9 @@ export default function App() {
 
           {/* Protected */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/lobby" element={<LobbyPage />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/friends" element={<FriendsPage />} />
             <Route
               path="/room/:roomId"
               element={
@@ -57,6 +63,7 @@ export default function App() {
             error:   { iconTheme: { primary: '#ff4757', secondary: '#080a0f' } },
           }}
         />
+      </FriendsProvider>
       </SocketProvider>
     </AuthProvider>
     </ErrorBoundary>

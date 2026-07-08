@@ -1,17 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
 export default function JoinPage() {
   const { roomId: paramRoomId } = useParams();
   const navigate = useNavigate();
-  const { guestLogin, user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   // Pre-fill name if the user already has a session
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [roomCode, setRoomCode] = useState(paramRoomId || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Require sign-in. Send unauthenticated users to /login, remembering the room.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      const target = paramRoomId ? `/room/${paramRoomId}` : '/home';
+      navigate('/login', { replace: true, state: { redirectTo: target, roomCode: paramRoomId || '' } });
+    }
+  }, [isAuthenticated]);
 
   const avatarSeed = displayName.trim() || 'Guest';
   const avatarUrl = `https://api.dicebear.com/8.x/avataaars/svg?seed=${encodeURIComponent(avatarSeed)}`;
@@ -28,16 +36,14 @@ export default function JoinPage() {
     try {
       const code = roomCode.trim().toUpperCase();
 
-      // If already authenticated AND name hasn't changed, skip re-login
-      const nameChanged = name !== user?.displayName;
-      if (!isAuthenticated || nameChanged) {
-        await guestLogin(name);
+      // Sign-in is required, so the user already has a session. Use it.
+      if (!isAuthenticated) {
+        navigate('/login', { replace: true, state: { roomCode: code } });
+        return;
       }
 
-      // Mark this room as "passed the join screen" so ProtectedRoute lets us through
       if (code) sessionStorage.setItem(`room_verified_${code}`, '1');
-
-      navigate(code ? `/room/${code}` : '/lobby', { replace: true });
+      navigate(code ? `/room/${code}` : '/home', { replace: true });
     } catch {
       setError('Something went wrong. Please try again.');
       setLoading(false);
@@ -176,7 +182,7 @@ export default function JoinPage() {
             </button>
 
             <p className="text-center text-dim text-xs">
-              Guest access · No account required · Free forever
+              Signed in · Ready to watch
             </p>
           </form>
         </div>

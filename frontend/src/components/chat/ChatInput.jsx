@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 const MAX_LENGTH = 2000;
 const EMOJI_OPTIONS = ['👍', '❤️', '😂', '🔥', '🎉', '😍', '👏', '😮', '🙂', '😄', '🤩', '🥳', '😢', '🙏', '💯', '✨', '😎', '🤔', '😡', '😅', '🥰', '🙌', '💖'];
@@ -91,31 +92,17 @@ export default function ChatInput({ onSubmit, onTyping, placeholder = 'Say somet
         </button>
 
         {showEmojiPicker && (
-          <div className="absolute bottom-12 right-0 z-10 w-64 rounded-2xl border border-border bg-surface p-2 shadow-2xl shadow-black/20">
-            <div className="mb-1 flex items-center justify-between px-1 text-[10px] uppercase tracking-[0.24em] text-dim">
-              <span>Quick reactions</span>
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker(false)}
-                className="rounded-full px-2 py-1 text-dim hover:bg-raised hover:text-bright"
-                aria-label="Close emoji picker"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="grid grid-cols-6 gap-1">
-              {EMOJI_OPTIONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => insertEmoji(emoji)}
-                  className="h-9 w-9 rounded-xl text-lg transition hover:scale-105 hover:bg-amber/10 focus:outline-none focus:ring-1 focus:ring-amber/30"
-                  aria-label={`Insert ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+          <div className="absolute bottom-12 right-0 z-20">
+            <EmojiPicker
+              theme={Theme.DARK}
+              onEmojiClick={(e) => { insertEmoji(e.emoji); }}
+              width={320}
+              height={400}
+              searchDisabled={false}
+              skinTonesDisabled={false}
+              lazyLoadEmojis={true}
+              previewConfig={{ showPreview: false }}
+            />
           </div>
         )}
       </div>

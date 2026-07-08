@@ -34,9 +34,9 @@ export default function RoomHeader() {
         {/* Left: room info */}
         <div className="flex items-center gap-3 min-w-0">
           <button
-            onClick={() => navigate('/lobby')}
+            onClick={() => navigate('/home')}
             className="text-dim hover:text-sub transition-colors"
-            title="Back to lobby"
+            title="Back to home"
           >
             ←
           </button>

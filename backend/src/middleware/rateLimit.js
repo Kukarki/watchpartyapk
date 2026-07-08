@@ -14,3 +14,9 @@ export const authLimiter = rateLimit({
   max: 20,
   message: { error: 'Too many auth attempts, please try again later.' },
 });
+
+export const friendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Too many friend requests, please try again later.' },
+});

@@ -9,17 +9,24 @@ import { Router } from 'express';
 
 const router = Router();
 
-// Allow any subdomain of these CDN providers
-const ALLOWED_HOST_PATTERNS = [
-  'cdnvideo',
-  'videofaster',
-  'kisskh',
+// Allow only these CDN provider domains (and their subdomains).
+// SECURITY (M1): match by domain SUFFIX, not substring. Substring matching
+// would let "kisskh.evil.com" through. We also require http(s) and block
+// any URL that resolves to a non-standard scheme.
+const ALLOWED_DOMAINS = [
+  'cdnvideo.com',
+  'videofaster.com',
+  'kisskh.co',
 ];
 
 function isAllowed(url) {
   try {
-    const { hostname } = new URL(url);
-    return ALLOWED_HOST_PATTERNS.some((p) => hostname.includes(p));
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+    const host = parsed.hostname.toLowerCase();
+    return ALLOWED_DOMAINS.some(
+      (d) => host === d || host.endsWith('.' + d)
+    );
   } catch {
     return false;
   }

@@ -1,14 +1,15 @@
 import { apiClient } from './client.js';
 
 export const userApi = {
-  guestLogin: (displayName) =>
-    apiClient.post('/auth/guest', { displayName }).then((r) => r.data),
 
-  register: (displayName, email, password) =>
-    apiClient.post('/auth/register', { displayName, email, password }).then((r) => r.data),
+  register: (displayName, email, password, dateOfBirth) =>
+    apiClient.post('/auth/register', { displayName, email, password, dateOfBirth }).then((r) => r.data),
 
   login: (email, password) =>
     apiClient.post('/auth/login', { email, password }).then((r) => r.data),
+
+  verifyAge: (dateOfBirth) =>
+    apiClient.post('/auth/verify-age', { dateOfBirth }).then((r) => r.data),
 
   getMe: () =>
     apiClient.get('/auth/me').then((r) => r.data),

@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import authRoutes  from './auth.routes.js';
-import roomRoutes  from './room.routes.js';
-import proxyRoutes from './proxy.routes.js';
+import authRoutes   from './auth.routes.js';
+import roomRoutes   from './room.routes.js';
+import proxyRoutes  from './proxy.routes.js';
+import friendRoutes from './friend.routes.js';
 
 const router = Router();
 
@@ -10,6 +11,9 @@ router.use('/auth', authRoutes);
 
 // Rooms — room CRUD, chat, queue, polls
 router.use('/rooms', roomRoutes);
+
+// Friends — requests, list, presence-aware list, search
+router.use('/friends', friendRoutes);
 
 // HLS proxy — strips CORS restrictions from kisskh CDN streams
 router.use('/proxy', proxyRoutes);
