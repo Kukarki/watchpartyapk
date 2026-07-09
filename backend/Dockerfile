@@ -9,9 +9,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy source
-COPY server.js ./
-COPY src/ ./src/
+# Copy source (--chown ensures the node user can read these regardless of
+# host-side permission bits, e.g. if the source dir was cloned as 700)
+COPY --chown=node:node server.js ./
+COPY --chown=node:node src/ ./src/
 
 # Run as non-root user
 USER node

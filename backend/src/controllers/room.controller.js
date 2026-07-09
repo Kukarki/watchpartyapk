@@ -51,3 +51,13 @@ export async function getPublicRooms(req, res, next) {
     next(err);
   }
 }
+
+export async function getRecentRooms(req, res, next) {
+  try {
+    if (!isSupabaseConnected()) return res.json({ rooms: [] });
+    const rooms = await roomService.getRecentRooms(req.user.userId);
+    res.json({ rooms });
+  } catch (err) {
+    next(err);
+  }
+}

@@ -109,6 +109,25 @@ class RoomService {
     return data || [];
   }
 
+  async getRecentRooms(userId, limit = 6) {
+    const { data, error } = await this.sb
+      .from('user_room_history')
+      .select('room_id, joined_at, rooms(name, host_name)')
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: false })
+      .limit(limit);
+
+    if (error) return [];
+    return (data || [])
+      .filter((r) => r.rooms)
+      .map((r) => ({
+        roomId:   r.room_id,
+        name:     r.rooms.name,
+        hostName: r.rooms.host_name,
+        joinedAt: r.joined_at,
+      }));
+  }
+
   async getRoomMembers(roomId) {
     const { data, error } = await this.sb
       .from('room_members')

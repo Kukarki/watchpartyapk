@@ -9,6 +9,9 @@ export const roomApi = {
 
   getChatHistory: (roomId, count = 50) =>
     apiClient.get(`/rooms/${roomId}/chat`, { params: { count } }).then((r) => r.data),
+
+  getRecentRooms: () =>
+    apiClient.get('/rooms/recent').then((r) => r.data),
 };
 
 export const queueApi = {
