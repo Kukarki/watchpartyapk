@@ -3,11 +3,15 @@ import { signToken } from '../utils/jwt.js';
 import { getSupabaseAdmin, isSupabaseConnected } from '../config/supabase.js';
 import { logger } from '../utils/logger.js';
 import { generateAvatar } from '../utils/avatar.js';
+import { generateUsername } from '../utils/username.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helper: upsert a row into `profiles` (non-fatal — DB down ≠ login fail)
+// `username` is only included (and therefore only ever written) when the
+// caller explicitly passes one — see generateUsername() call sites below.
+// There is no update path for username elsewhere, so once set it's immutable.
 // ─────────────────────────────────────────────────────────────────────────────
-async function upsertProfile(sb, { id, displayName, avatarUrl, email = null, provider, dateOfBirth = null, ageVerified = null }) {
+async function upsertProfile(sb, { id, displayName, avatarUrl, email = null, provider, dateOfBirth = null, ageVerified = null, username = null }) {
   const row = {
     id,
     display_name: displayName,
@@ -18,6 +22,7 @@ async function upsertProfile(sb, { id, displayName, avatarUrl, email = null, pro
   };
   if (dateOfBirth !== null) row.date_of_birth = dateOfBirth;
   if (ageVerified !== null) row.age_verified  = ageVerified;
+  if (username !== null)    row.username      = username;
   const { error } = await sb.from('profiles').upsert(row, { onConflict: 'id' });
   if (error) logger.warn('upsertProfile failed', { id, provider, error: error.message });
 }
@@ -51,10 +56,20 @@ export async function getMe(req, res, next) {
       .then(() => {})
       .catch(() => {});
 
+    // Safety net: backfill a username for any profile that predates it
+    // (should be rare — the v5 migration backfills existing rows, and every
+    // signup/login path assigns one on creation).
+    let username = profile.username;
+    if (!username) {
+      username = await generateUsername(sb, profile.display_name);
+      sb.from('profiles').update({ username }).eq('id', req.user.userId).then(() => {}).catch(() => {});
+    }
+
     res.json({
       user: {
         userId:      profile.id,
         displayName: profile.display_name,
+        username,
         email:       profile.email || req.user.email,
         avatar:      profile.avatar_url,
         provider:    profile.provider,
@@ -84,8 +99,10 @@ export async function guestLogin(req, res, next) {
 
     // Persist to DB (non-fatal) so chat history can attribute messages to this guest
     if (isSupabaseConnected()) {
-      await upsertProfile(getSupabaseAdmin(), {
-        id: userId, displayName: name, avatarUrl: avatar, provider: 'guest',
+      const sb = getSupabaseAdmin();
+      const username = await generateUsername(sb, name);
+      await upsertProfile(sb, {
+        id: userId, displayName: name, avatarUrl: avatar, provider: 'guest', username,
       });
     }
 
@@ -143,10 +160,12 @@ export async function register(req, res, next) {
     // Store profile now (id from signUp). Age is verified at signup time.
     if (data.user?.id) {
       const avatar = generateAvatar(name);
+      const username = await generateUsername(sb, name);
       await upsertProfile(sb, {
         id: data.user.id, displayName: name, avatarUrl: avatar,
         email: cleanEmail, provider: 'email',
         dateOfBirth: dob.toISOString().slice(0, 10), ageVerified: true,
+        username,
       });
     }
 
@@ -202,12 +221,21 @@ export async function login(req, res, next) {
                         data.user.email?.split('@')[0] || 'User';
     const avatar      = profile?.avatar_url || generateAvatar(displayName);
 
+    let username = profile?.username;
+
     // Ensure profile exists (handles users who registered before this migration)
     if (!profile) {
+      username = await generateUsername(sb, displayName);
       await upsertProfile(sb, {
         id: data.user.id, displayName, avatarUrl: avatar,
         email: data.user.email, provider: 'email',
+        username,
       });
+    } else if (!username) {
+      // Legacy profile that predates usernames — backfill once, in place.
+      username = await generateUsername(sb, displayName);
+      sb.from('profiles').update({ username }).eq('id', data.user.id).then(() => {}).catch(() => {});
+      sb.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', data.user.id).then(() => {}).catch(() => {});
     } else {
       // Update last_seen
       sb.from('profiles')
@@ -219,6 +247,7 @@ export async function login(req, res, next) {
     const userPayload = {
       userId:      data.user.id,
       displayName,
+      username,
       email:       data.user.email,
       avatar,
       provider:    'email',
@@ -267,16 +296,22 @@ export async function supabaseCallback(req, res, next) {
                         sbUser.user_metadata?.picture ||
                         generateAvatar(userId);
 
-    // Check existing age verification status before upsert
+    // Check existing age verification + username status before upsert
     const { data: existing } = await sb.from('profiles')
-      .select('age_verified').eq('id', userId).single();
+      .select('age_verified, username').eq('id', userId).single();
     const ageVerified = existing?.age_verified === true;
+
+    // Only ever generate a username the first time this profile is created —
+    // upsertProfile skips the column entirely when username is null, so
+    // returning users' handles are never touched.
+    const username = existing?.username || await generateUsername(sb, name);
 
     await upsertProfile(sb, {
       id: userId, displayName: name, avatarUrl, email, provider: 'google',
+      username: existing?.username ? null : username,
     });
 
-    const userPayload = { userId, displayName: name, email, avatar: avatarUrl, provider: 'google', role: 'user', ageVerified };
+    const userPayload = { userId, displayName: name, username, email, avatar: avatarUrl, provider: 'google', role: 'user', ageVerified };
     const token = signToken(userPayload);
 
     logger.info('Google OAuth login', { userId, email, ageVerified });

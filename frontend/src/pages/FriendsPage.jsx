@@ -98,7 +98,9 @@ function FriendsTab({ friends, onlineSet, onChanged, onAdd }) {
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return friends;
-    return friends.filter((f) => f.displayName?.toLowerCase().includes(q));
+    return friends.filter((f) =>
+      f.displayName?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q)
+    );
   }, [friends, query]);
 
   const handleRemove = async (friendId, displayName) => {
@@ -119,7 +121,7 @@ function FriendsTab({ friends, onlineSet, onChanged, onAdd }) {
         </div>
         <div>
           <p className="text-bright text-sm font-medium mb-1">No friends yet</p>
-          <p className="text-dim text-xs">Search for people by name or email to send your first request.</p>
+          <p className="text-dim text-xs">Search by username, name, or email to send your first request.</p>
         </div>
         <button type="button" onClick={onAdd} className="btn-primary text-xs px-4 py-2 mt-1">
           Add a Friend
@@ -160,8 +162,12 @@ function FriendsTab({ friends, onlineSet, onChanged, onAdd }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-bright font-medium truncate">{f.displayName}</p>
-                  <p className={`text-xs ${online ? 'text-online' : 'text-dim'}`}>
-                    {online ? 'Online now' : `Last seen ${timeAgo(f.lastSeenAt)}`}
+                  <p className="text-xs text-dim truncate">
+                    {f.username && <span className="font-mono">@{f.username}</span>}
+                    {f.username && ' · '}
+                    <span className={online ? 'text-online' : ''}>
+                      {online ? 'Online now' : `Last seen ${timeAgo(f.lastSeenAt)}`}
+                    </span>
                   </p>
                 </div>
                 <button
@@ -220,7 +226,10 @@ function RequestsTab({ incoming, outgoing, onChanged }) {
                 <Avatar src={r.avatar} name={r.displayName} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-bright font-medium truncate">{r.displayName}</p>
-                  <p className="text-xs text-dim">wants to be friends</p>
+                  <p className="text-xs text-dim truncate">
+                    {r.username && <span className="font-mono">@{r.username} · </span>}
+                    wants to be friends
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -249,7 +258,10 @@ function RequestsTab({ incoming, outgoing, onChanged }) {
             {outgoing.map((r) => (
               <div key={r.requestId} className="card p-3.5 flex items-center gap-3 opacity-80">
                 <Avatar src={r.avatar} name={r.displayName} size="sm" />
-                <p className="flex-1 min-w-0 text-sm text-bright truncate">{r.displayName}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-bright truncate">{r.displayName}</p>
+                  {r.username && <p className="text-xs text-dim font-mono truncate">@{r.username}</p>}
+                </div>
                 <span className="text-xs text-dim font-mono shrink-0 px-2 py-1 rounded-full bg-raised border border-border">
                   Pending
                 </span>
@@ -319,7 +331,7 @@ function AddTab({ onChanged }) {
         <input
           type="text"
           className="input-base pl-9"
-          placeholder="Search by name or email…"
+          placeholder="Search by username, name, or email…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
@@ -346,7 +358,10 @@ function AddTab({ onChanged }) {
           {results.map((r) => (
             <div key={r.userId} className="card p-3.5 flex items-center gap-3">
               <Avatar src={r.avatar} name={r.displayName} size="sm" />
-              <p className="flex-1 min-w-0 text-sm text-bright font-medium truncate">{r.displayName}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-bright font-medium truncate">{r.displayName}</p>
+                {r.username && <p className="text-xs text-dim font-mono truncate">@{r.username}</p>}
+              </div>
               <button
                 type="button"
                 onClick={() => handleAdd(r.userId, r.displayName)}

@@ -88,6 +88,16 @@ export default function ProfilePage() {
             <input className="input-base max-w-xs text-center" value={displayName}
                    onChange={(e) => { setDisplayName(e.target.value); setTrait('seed', e.target.value || 'User'); }}
                    maxLength={30} placeholder="Your name" disabled={loading} />
+            {user?.username && (
+              <span
+                title="Your username — permanent, can't be changed"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+                           bg-raised border border-border text-sub text-xs font-mono"
+              >
+                @{user.username}
+                <span className="text-dim">🔒</span>
+              </span>
+            )}
           </div>
 
           {/* Trait pickers */}

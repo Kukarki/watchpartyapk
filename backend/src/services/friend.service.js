@@ -28,8 +28,14 @@ class FriendService {
 
   // ── Requests ───────────────────────────────────────────────────────────────
 
-  async createRequest(requesterId, { toUserId, email }) {
+  async createRequest(requesterId, { toUserId, email, username }) {
     let addresseeId = toUserId;
+
+    if (!addresseeId && username) {
+      const { data } = await this.sb.from('profiles').select('id').eq('username', username.trim().toLowerCase()).maybeSingle();
+      if (!data) throw httpError(404, 'No user found with that username');
+      addresseeId = data.id;
+    }
 
     if (!addresseeId && email) {
       const { data } = await this.sb.from('profiles').select('id').eq('email', email).maybeSingle();
@@ -37,7 +43,7 @@ class FriendService {
       addresseeId = data.id;
     }
 
-    if (!addresseeId) throw httpError(400, 'toUserId or email is required');
+    if (!addresseeId) throw httpError(400, 'toUserId, username, or email is required');
     if (addresseeId === requesterId) throw httpError(400, 'Cannot send a friend request to yourself');
 
     const [{ data: existing1 }, { data: existing2 }] = await Promise.all([
@@ -109,6 +115,7 @@ class FriendService {
         requestId: r.id,
         userId: r.requester_id,
         displayName: profileById[r.requester_id]?.display_name || 'Unknown',
+        username: profileById[r.requester_id]?.username || null,
         avatar: profileById[r.requester_id]?.avatar_url || '',
         createdAt: r.created_at,
       })),
@@ -116,6 +123,7 @@ class FriendService {
         requestId: r.id,
         userId: r.addressee_id,
         displayName: profileById[r.addressee_id]?.display_name || 'Unknown',
+        username: profileById[r.addressee_id]?.username || null,
         avatar: profileById[r.addressee_id]?.avatar_url || '',
         createdAt: r.created_at,
       })),
@@ -130,13 +138,14 @@ class FriendService {
 
     const { data, error } = await this.sb
       .from('profiles')
-      .select('id, display_name, avatar_url, last_seen_at')
+      .select('id, display_name, username, avatar_url, last_seen_at')
       .in('id', friendIds);
     if (error) throw error;
 
     return (data || []).map((p) => ({
       userId: p.id,
       displayName: p.display_name,
+      username: p.username,
       avatar: p.avatar_url,
       online: onlineIds.has(p.id),
       lastSeenAt: p.last_seen_at,
@@ -168,17 +177,20 @@ class FriendService {
     const exclude = new Set([userId, ...friendIds]);
 
     const pattern = `%${q}%`;
-    const [{ data: byName, error: e1 }, { data: byEmail, error: e2 }] = await Promise.all([
-      this.sb.from('profiles').select('id, display_name, avatar_url').ilike('display_name', pattern).limit(20),
-      this.sb.from('profiles').select('id, display_name, avatar_url').ilike('email', pattern).limit(20),
+    const cols = 'id, display_name, username, avatar_url';
+    const [{ data: byName, error: e1 }, { data: byEmail, error: e2 }, { data: byUsername, error: e3 }] = await Promise.all([
+      this.sb.from('profiles').select(cols).ilike('display_name', pattern).limit(20),
+      this.sb.from('profiles').select(cols).ilike('email', pattern).limit(20),
+      this.sb.from('profiles').select(cols).ilike('username', pattern).limit(20),
     ]);
     if (e1) throw e1;
     if (e2) throw e2;
+    if (e3) throw e3;
 
     const results = new Map();
-    for (const p of [...(byName || []), ...(byEmail || [])]) {
+    for (const p of [...(byUsername || []), ...(byName || []), ...(byEmail || [])]) {
       if (exclude.has(p.id) || results.has(p.id)) continue;
-      results.set(p.id, { userId: p.id, displayName: p.display_name, avatar: p.avatar_url });
+      results.set(p.id, { userId: p.id, displayName: p.display_name, username: p.username, avatar: p.avatar_url });
     }
     return Array.from(results.values()).slice(0, 20);
   }
@@ -187,7 +199,7 @@ class FriendService {
 
   async _profilesById(ids) {
     if (ids.length === 0) return {};
-    const { data, error } = await this.sb.from('profiles').select('id, display_name, avatar_url').in('id', ids);
+    const { data, error } = await this.sb.from('profiles').select('id, display_name, username, avatar_url').in('id', ids);
     if (error) throw error;
     return Object.fromEntries((data || []).map((p) => [p.id, p]));
   }
