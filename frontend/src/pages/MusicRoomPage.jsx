@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
 import { playlistApi } from '@/api/playlist.api.js';
+import { queueApi } from '@/api/room.api.js';
 import MusicPlayer     from '@/components/player/MusicPlayer.jsx';
 import ChatPanel       from '@/components/chat/ChatPanel.jsx';
 import MemberList      from '@/components/room/MemberList.jsx';
 import RoomHeader      from '@/components/room/RoomHeader.jsx';
 import WatchQueue      from '@/components/room/WatchQueue.jsx';
 import VoiceChannel    from '@/components/voice/VoiceChannel.jsx';
+import MusicSearch     from '@/components/music/MusicSearch.jsx';
 import toast from 'react-hot-toast';
 
 const SIDEBAR_TABS = [
@@ -25,8 +27,10 @@ export default function MusicRoomPage() {
   const [sidebarTab, setSidebarTab] = useState('queue');
   const [queueRefreshKey, setQueueRefreshKey] = useState(0);
   const [showLoadPlaylist, setShowLoadPlaylist] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [loadingPlaylist, setLoadingPlaylist] = useState(null);
+  const [addedVideoIds, setAddedVideoIds] = useState(new Set());
 
   useEffect(() => {
     if (!showLoadPlaylist) return;
@@ -44,6 +48,17 @@ export default function MusicRoomPage() {
       toast.error(err.response?.data?.error || 'Failed to load playlist');
     } finally {
       setLoadingPlaylist(null);
+    }
+  };
+
+  const handleAddSearchResult = async (result) => {
+    try {
+      await queueApi.addToQueue(room.id, { url: result.url, title: result.title, type: 'youtube' });
+      setAddedVideoIds((s) => new Set(s).add(result.videoId));
+      setQueueRefreshKey((k) => k + 1);
+      toast.success(`Added "${result.title}" to the queue`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add track');
     }
   };
 
@@ -104,14 +119,30 @@ export default function MusicRoomPage() {
         {sidebarTab === 'voice'   && <VoiceChannel channelId="music" channelName="Listening Party" />}
         {sidebarTab === 'queue' && (
           <div className="h-full flex flex-col">
-            <div className="px-3 pt-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowLoadPlaylist((v) => !v)}
-                className="btn-ghost text-xs px-2.5 py-1.5 border border-border w-full justify-center"
-              >
-                📥 Load a Playlist
-              </button>
+            <div className="px-3 pt-3 shrink-0 space-y-1.5">
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setShowSearch((v) => !v); setShowLoadPlaylist(false); }}
+                  className="btn-ghost text-xs px-2.5 py-1.5 border border-border flex-1 justify-center"
+                >
+                  🔍 Search Music
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowLoadPlaylist((v) => !v); setShowSearch(false); }}
+                  className="btn-ghost text-xs px-2.5 py-1.5 border border-border flex-1 justify-center"
+                >
+                  📥 Load Playlist
+                </button>
+              </div>
+
+              {showSearch && (
+                <div className="mt-2 card p-2">
+                  <MusicSearch onAdd={handleAddSearchResult} addedIds={addedVideoIds} />
+                </div>
+              )}
+
               {showLoadPlaylist && (
                 <div className="mt-2 card p-2 max-h-40 overflow-y-auto space-y-0.5">
                   {playlists.length === 0 ? (

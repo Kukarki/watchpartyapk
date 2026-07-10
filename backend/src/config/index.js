@@ -42,4 +42,17 @@ export const config = {
     anonKey: process.env.SUPABASE_ANON_KEY || '',
     serviceKey: process.env.SUPABASE_SERVICE_KEY || '',
   },
+
+  spotify: {
+    clientId:     process.env.SPOTIFY_CLIENT_ID || '',
+    clientSecret: process.env.SPOTIFY_CLIENT_SECRET || '',
+    redirectUri:  process.env.SPOTIFY_REDIRECT_URI || `${process.env.PUBLIC_URL || 'https://sandipwatch7.dedyn.io'}/auth/spotify/callback`,
+  },
+
+  youtube: {
+    clientId:     process.env.YOUTUBE_CLIENT_ID || '',
+    clientSecret: process.env.YOUTUBE_CLIENT_SECRET || '',
+    apiKey:       process.env.YOUTUBE_API_KEY || '', // for public search — added once the user provides it
+    redirectUri:  process.env.YOUTUBE_REDIRECT_URI || `${process.env.PUBLIC_URL || 'https://sandipwatch7.dedyn.io'}/auth/youtube/callback`,
+  },
 };

@@ -4,6 +4,8 @@ import AppShell from '@/components/layout/AppShell.jsx';
 import { roomApi } from '@/api/room.api.js';
 import { playlistApi } from '@/api/playlist.api.js';
 import { historyApi } from '@/api/history.api.js';
+import { spotifyApi } from '@/api/spotify.api.js';
+import { youtubeApi } from '@/api/youtube.api.js';
 import { parseVideoUrl } from '@/utils/videoUtils.js';
 import toast from 'react-hot-toast';
 
@@ -25,11 +27,82 @@ export default function MusicPage() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [history, setHistory] = useState([]);
+  const [spotify, setSpotify] = useState(null); // null = loading, else { connected, isPlaying, track }
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
+  const [youtube, setYoutube] = useState(null); // null = loading, else { connected, playlists }
+  const [connectingYoutube, setConnectingYoutube] = useState(false);
+  const [importingYtPlaylist, setImportingYtPlaylist] = useState(null);
+
+  const refreshPlaylists = () => playlistApi.list().then((d) => setPlaylists(d.playlists || [])).catch(() => {});
 
   useEffect(() => {
-    playlistApi.list().then((d) => setPlaylists(d.playlists || [])).catch(() => {}).finally(() => setLoadingPlaylists(false));
+    refreshPlaylists().finally(() => setLoadingPlaylists(false));
     historyApi.list(10).then((d) => setHistory(d.history || [])).catch(() => {});
+
+    const loadSpotify = () => spotifyApi.getNowPlaying().then(setSpotify).catch(() => setSpotify({ connected: false }));
+    loadSpotify();
+    const interval = setInterval(loadSpotify, 15000);
+
+    youtubeApi.listPlaylists().then(setYoutube).catch(() => setYoutube({ connected: false }));
+
+    return () => clearInterval(interval);
   }, []);
+
+  const handleConnectSpotify = async () => {
+    setConnectingSpotify(true);
+    try {
+      const { url } = await spotifyApi.getAuthUrl();
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Spotify is not available right now');
+      setConnectingSpotify(false);
+    }
+  };
+
+  const handleDisconnectSpotify = async () => {
+    try {
+      await spotifyApi.disconnect();
+      setSpotify({ connected: false });
+      toast.success('Spotify disconnected');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to disconnect');
+    }
+  };
+
+  const handleConnectYouTube = async () => {
+    setConnectingYoutube(true);
+    try {
+      const { url } = await youtubeApi.getAuthUrl();
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'YouTube is not available right now');
+      setConnectingYoutube(false);
+    }
+  };
+
+  const handleDisconnectYouTube = async () => {
+    try {
+      await youtubeApi.disconnect();
+      setYoutube({ connected: false });
+      toast.success('YouTube disconnected');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to disconnect');
+    }
+  };
+
+  const handleImportYtPlaylist = async (ytPlaylist) => {
+    setImportingYtPlaylist(ytPlaylist.id);
+    try {
+      const { playlistId, trackCount } = await youtubeApi.importPlaylist(ytPlaylist.id, ytPlaylist.title);
+      toast.success(`Imported ${trackCount} track${trackCount === 1 ? '' : 's'}`);
+      await refreshPlaylists();
+      navigate(`/music/playlist/${playlistId}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to import playlist');
+    } finally {
+      setImportingYtPlaylist(null);
+    }
+  };
 
   const handleCreateRoom = async (e) => {
     e.preventDefault();
@@ -164,19 +237,91 @@ export default function MusicPage() {
           </div>
         </div>
 
-        {/* Connect accounts — coming soon */}
-        <div className="card p-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-          <h2 className="font-display font-semibold text-bright text-base mb-1">Connect Your Music</h2>
-          <p className="text-dim text-xs mb-4">Link your account to show friends what you're listening to.</p>
-          <div className="flex flex-wrap gap-3">
-            <button disabled title="Coming soon"
-                    className="btn-ghost border border-border text-sm px-4 py-2 opacity-50 cursor-not-allowed">
-              🟢 Connect Spotify — coming soon
-            </button>
-            <button disabled title="Coming soon"
-                    className="btn-ghost border border-border text-sm px-4 py-2 opacity-50 cursor-not-allowed">
-              ▶️ Connect YouTube Music — coming soon
-            </button>
+        {/* Connect accounts */}
+        <div className="card p-6 animate-slide-up space-y-5" style={{ animationDelay: '0.15s' }}>
+          <div>
+            <h2 className="font-display font-semibold text-bright text-base mb-1">Connect Your Music</h2>
+            <p className="text-dim text-xs">Show friends what you're listening to, or pull in your own playlists.</p>
+          </div>
+
+          {/* Spotify */}
+          <div>
+            <p className="text-xs font-mono text-dim uppercase tracking-widest mb-2">Spotify</p>
+            {spotify?.connected ? (
+              <div className="flex items-center gap-3 flex-wrap">
+                {spotify.isPlaying && spotify.track ? (
+                  <div className="flex items-center gap-3 bg-raised border border-border rounded-xl px-3 py-2">
+                    {spotify.track.albumArt && (
+                      <img src={spotify.track.albumArt} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs text-online font-mono flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse-dot" />
+                        Now playing
+                      </p>
+                      <p className="text-sm text-bright truncate max-w-[220px]">{spotify.track.name}</p>
+                      <p className="text-xs text-dim truncate max-w-[220px]">{spotify.track.artists}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-raised border border-border rounded-xl px-3 py-2.5">
+                    <span className="text-online text-sm">🟢</span>
+                    <p className="text-xs text-dim">Connected — nothing playing right now</p>
+                  </div>
+                )}
+                <button onClick={handleDisconnectSpotify} className="btn-ghost text-xs px-3 py-1.5 text-dim">
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button onClick={handleConnectSpotify} disabled={connectingSpotify || spotify === null}
+                      className="btn-ghost border border-border text-sm px-4 py-2 disabled:opacity-50">
+                🟢 {connectingSpotify ? 'Redirecting...' : 'Connect Spotify'}
+              </button>
+            )}
+          </div>
+
+          {/* YouTube */}
+          <div>
+            <p className="text-xs font-mono text-dim uppercase tracking-widest mb-2">YouTube</p>
+            {youtube?.connected ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 bg-raised border border-border rounded-xl px-3 py-2">
+                    <span className="text-online text-sm">▶️</span>
+                    <p className="text-xs text-dim">Connected — import a playlist below</p>
+                  </div>
+                  <button onClick={handleDisconnectYouTube} className="btn-ghost text-xs px-3 py-1.5 text-dim">
+                    Disconnect
+                  </button>
+                </div>
+                {youtube.playlists?.length > 0 && (
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {youtube.playlists.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-raised">
+                        {p.thumbnail && <img src={p.thumbnail} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-bright truncate">{p.title}</p>
+                          <p className="text-[10px] text-dim">{p.itemCount} videos</p>
+                        </div>
+                        <button
+                          onClick={() => handleImportYtPlaylist(p)}
+                          disabled={importingYtPlaylist === p.id}
+                          className="btn-ghost text-[10px] px-2 py-1 border border-border shrink-0 disabled:opacity-40"
+                        >
+                          {importingYtPlaylist === p.id ? 'Importing…' : 'Import'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button onClick={handleConnectYouTube} disabled={connectingYoutube || youtube === null}
+                      className="btn-ghost border border-border text-sm px-4 py-2 disabled:opacity-50">
+                ▶️ {connectingYoutube ? 'Redirecting...' : 'Connect YouTube'}
+              </button>
+            )}
           </div>
         </div>
       </main>

@@ -16,6 +16,8 @@ import RoomPage            from '@/pages/RoomPage.jsx';
 import MusicRoomPage       from '@/pages/MusicRoomPage.jsx';
 import MusicPage           from '@/pages/MusicPage.jsx';
 import PlaylistDetailPage  from '@/pages/PlaylistDetailPage.jsx';
+import SpotifyCallbackPage from '@/pages/SpotifyCallbackPage.jsx';
+import YouTubeCallbackPage from '@/pages/YouTubeCallbackPage.jsx';
 import PlatformPage        from '@/pages/PlatformPage.jsx';
 import FriendsPage         from '@/pages/FriendsPage.jsx';
 
@@ -42,6 +44,8 @@ export default function App() {
             <Route path="/music" element={<MusicPage />} />
             <Route path="/music/playlist/:playlistId" element={<PlaylistDetailPage />} />
             <Route path="/music/shared/:shareCode" element={<PlaylistDetailPage />} />
+            <Route path="/auth/spotify/callback" element={<SpotifyCallbackPage />} />
+            <Route path="/auth/youtube/callback" element={<YouTubeCallbackPage />} />
             <Route
               path="/room/:roomId"
               element={

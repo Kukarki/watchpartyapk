@@ -5,6 +5,8 @@ import proxyRoutes    from './proxy.routes.js';
 import friendRoutes   from './friend.routes.js';
 import playlistRoutes from './playlist.routes.js';
 import historyRoutes  from './history.routes.js';
+import spotifyRoutes  from './spotify.routes.js';
+import youtubeRoutes  from './youtube.routes.js';
 
 const router = Router();
 
@@ -22,6 +24,12 @@ router.use('/playlists', playlistRoutes);
 
 // Listen history — tracks played in music rooms
 router.use('/history', historyRoutes);
+
+// Spotify — OAuth connect + now-playing (read-only, no playback control)
+router.use('/spotify', spotifyRoutes);
+
+// YouTube — OAuth connect + list/import the user's own playlists
+router.use('/youtube', youtubeRoutes);
 
 // HLS proxy — strips CORS restrictions from kisskh CDN streams
 router.use('/proxy', proxyRoutes);

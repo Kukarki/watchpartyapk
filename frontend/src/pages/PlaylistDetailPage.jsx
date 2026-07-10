@@ -4,6 +4,7 @@ import AppShell from '@/components/layout/AppShell.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { playlistApi } from '@/api/playlist.api.js';
 import { parseVideoUrl } from '@/utils/videoUtils.js';
+import MusicSearch from '@/components/music/MusicSearch.jsx';
 import toast from 'react-hot-toast';
 
 export default function PlaylistDetailPage() {
@@ -17,6 +18,8 @@ export default function PlaylistDetailPage() {
   const [urlInput, setUrlInput] = useState('');
   const [titleInput, setTitleInput] = useState('');
   const [adding, setAdding] = useState(false);
+  const [addMode, setAddMode] = useState('search'); // 'search' | 'url'
+  const [addedVideoIds, setAddedVideoIds] = useState(new Set());
 
   const isOwner = playlist && user && playlist.ownerId === user.userId;
 
@@ -75,6 +78,19 @@ export default function PlaylistDetailPage() {
       toast.error(err.response?.data?.error || 'Failed to add track');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleAddSearchResult = async (result) => {
+    try {
+      const { track } = await playlistApi.addTrack(playlist.id, {
+        url: result.url, title: result.title, thumbnail: result.thumbnail, type: 'youtube',
+      });
+      setPlaylist((p) => ({ ...p, tracks: [...p.tracks, track] }));
+      setAddedVideoIds((s) => new Set(s).add(result.videoId));
+      toast.success('Added to playlist');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add track');
     }
   };
 
@@ -163,27 +179,52 @@ export default function PlaylistDetailPage() {
         </div>
 
         {isOwner && (
-          <form onSubmit={handleAddTrack} className="card p-4 mb-6 space-y-2">
-            <p className="text-xs font-mono text-dim uppercase tracking-widest">Add Track</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                className="input-base text-sm flex-1"
-                placeholder="YouTube or track URL…"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-              />
-              <input
-                className="input-base text-sm sm:w-48"
-                placeholder="Title (optional)"
-                value={titleInput}
-                onChange={(e) => setTitleInput(e.target.value)}
-              />
-              <button type="submit" disabled={adding || !urlInput.trim()}
-                      className="btn-primary text-sm px-4 shrink-0 disabled:opacity-40">
-                {adding ? '...' : '+ Add'}
-              </button>
+          <div className="card p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-mono text-dim uppercase tracking-widest">Add Track</p>
+              <div className="flex gap-1 card p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setAddMode('search')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors
+                              ${addMode === 'search' ? 'bg-amber text-void' : 'text-sub hover:text-bright'}`}
+                >
+                  🔍 Search
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddMode('url')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors
+                              ${addMode === 'url' ? 'bg-amber text-void' : 'text-sub hover:text-bright'}`}
+                >
+                  🔗 Paste URL
+                </button>
+              </div>
             </div>
-          </form>
+
+            {addMode === 'search' ? (
+              <MusicSearch onAdd={handleAddSearchResult} addedIds={addedVideoIds} />
+            ) : (
+              <form onSubmit={handleAddTrack} className="flex flex-col sm:flex-row gap-2">
+                <input
+                  className="input-base text-sm flex-1"
+                  placeholder="YouTube or track URL…"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                />
+                <input
+                  className="input-base text-sm sm:w-48"
+                  placeholder="Title (optional)"
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                />
+                <button type="submit" disabled={adding || !urlInput.trim()}
+                        className="btn-primary text-sm px-4 shrink-0 disabled:opacity-40">
+                  {adding ? '...' : '+ Add'}
+                </button>
+              </form>
+            )}
+          </div>
         )}
 
         {playlist.tracks.length === 0 ? (
