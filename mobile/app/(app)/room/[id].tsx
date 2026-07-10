@@ -16,7 +16,6 @@ import {
   Switch,
   AppState,
 } from 'react-native';
-import { RTCView } from 'react-native-webrtc';
 import * as Notifications from 'expo-notifications';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -539,14 +538,10 @@ export default function RoomScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Remote screen share overlay ── */}
+      {/* ── Remote screen share overlay (WebRTC disabled) ── */}
       {remoteScreenStream && !isScreenSharing && (
         <View style={styles.screenShareOverlay}>
-          <RTCView
-            streamURL={(remoteScreenStream as any).toURL?.() ?? ''}
-            style={styles.screenShareView}
-            objectFit="contain"
-          />
+          <View style={styles.screenShareView} />
           <View style={styles.screenShareBadge}>
             <Ionicons name="share-social-outline" size={12} color={COLORS.background} />
             <Text style={styles.screenShareBadgeText}>Screen Shared</Text>
