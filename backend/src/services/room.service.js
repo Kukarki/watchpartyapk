@@ -9,7 +9,7 @@ class RoomService {
 
   // ── Rooms ──────────────────────────────────────────────────────────────────
 
-  async createRoom({ name, hostId, hostName = '', videoUrl = '' }) {
+  async createRoom({ name, hostId, hostName = '', videoUrl = '', roomType = 'watch' }) {
     const roomId = uuidv4().slice(0, 8).toUpperCase();
 
     const { data, error } = await this.sb
@@ -24,12 +24,13 @@ class RoomService {
         is_playing:       false,
         video_position:   0,
         state_updated_at: new Date().toISOString(),
+        room_type:        roomType,
       })
       .select()
       .single();
 
     if (error) throw error;
-    logger.info('Room created', { roomId, hostId });
+    logger.info('Room created', { roomId, hostId, roomType });
     return this._mapRoom(data);
   }
 
@@ -193,6 +194,30 @@ class RoomService {
     }
   }
 
+  // ── Listen history (music rooms) ────────────────────────────────────────────
+
+  async logListenHistory(roomId, userId, { url, title = 'Untitled', thumbnail = '', type = 'youtube' }) {
+    const { error } = await this.sb.from('listen_history').insert({
+      user_id: userId, room_id: roomId, url, title, thumbnail, type,
+    });
+    if (error) logger.warn('logListenHistory failed', { roomId, userId, error: error.message });
+  }
+
+  async getListenHistory(userId, limit = 20) {
+    const { data, error } = await this.sb
+      .from('listen_history')
+      .select('*')
+      .eq('user_id', userId)
+      .order('played_at', { ascending: false })
+      .limit(limit);
+
+    if (error) return [];
+    return (data || []).map((r) => ({
+      id: r.id, url: r.url, title: r.title, thumbnail: r.thumbnail,
+      type: r.type, roomId: r.room_id, playedAt: r.played_at,
+    }));
+  }
+
   // ── Mappers ────────────────────────────────────────────────────────────────
 
   _mapRoom(row) {
@@ -201,6 +226,7 @@ class RoomService {
       name:     row.name,
       hostId:   row.host_id,
       isPublic: row.is_public ?? true,
+      roomType: row.room_type || 'watch',
       videoState: {
         videoUrl:    row.current_url       || '',
         isPlaying:   row.is_playing        ?? false,

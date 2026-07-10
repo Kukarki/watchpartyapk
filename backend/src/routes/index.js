@@ -1,8 +1,10 @@
 import { Router } from 'express';
-import authRoutes   from './auth.routes.js';
-import roomRoutes   from './room.routes.js';
-import proxyRoutes  from './proxy.routes.js';
-import friendRoutes from './friend.routes.js';
+import authRoutes     from './auth.routes.js';
+import roomRoutes     from './room.routes.js';
+import proxyRoutes    from './proxy.routes.js';
+import friendRoutes   from './friend.routes.js';
+import playlistRoutes from './playlist.routes.js';
+import historyRoutes  from './history.routes.js';
 
 const router = Router();
 
@@ -14,6 +16,12 @@ router.use('/rooms', roomRoutes);
 
 // Friends — requests, list, presence-aware list, search
 router.use('/friends', friendRoutes);
+
+// Playlists — durable, shareable track lists (independent of any room)
+router.use('/playlists', playlistRoutes);
+
+// Listen history — tracks played in music rooms
+router.use('/history', historyRoutes);
 
 // HLS proxy — strips CORS restrictions from kisskh CDN streams
 router.use('/proxy', proxyRoutes);

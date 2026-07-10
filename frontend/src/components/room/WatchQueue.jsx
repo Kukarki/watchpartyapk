@@ -81,7 +81,7 @@ export default function WatchQueue({ roomId }) {
   const handlePlayItem = async (item) => {
     setPlayingId(item.id);
     try {
-      sendChangeUrl(item.url); // broadcasts the new URL to everyone via socket immediately
+      sendChangeUrl(item.url, { title: item.title, type: item.type }); // broadcasts the new URL to everyone via socket immediately
       toast.success(`▶ Playing: ${item.title}`);
       // Best-effort remove from queue (may fail if not owner/host — that's ok)
       try {
@@ -102,7 +102,7 @@ export default function WatchQueue({ roomId }) {
     setLoading(true);
     try {
       const data = await queueApi.playNext(roomId);
-      sendChangeUrl(data.video.url);
+      sendChangeUrl(data.video.url, { title: data.video.title, type: data.video.type });
       setQueue(data.queue || []);
       toast.success(`▶ Playing: ${data.video.title}`);
     } catch (err) {

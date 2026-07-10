@@ -124,13 +124,18 @@ export function registerRoomHandlers(io, socket) {
   });
 
   // ─── video:change_url ────────────────────────────────────────────────────
-  socket.on('video:change_url', async ({ roomId, videoUrl } = {}) => {
+  socket.on('video:change_url', async ({ roomId, videoUrl, title, thumbnail, type } = {}) => {
     const room = await requirePlaybackControl(roomId);
     if (!room) return;
     if (typeof videoUrl !== 'string' || videoUrl.length > 2048) return;
     try {
       await roomService.updateVideoState(roomId, { videoUrl, currentTime: 0, isPlaying: false });
       io.to(roomId).emit('video:state', { videoUrl, currentTime: 0, isPlaying: false, changedBy: userId });
+
+      if (room.roomType === 'music') {
+        roomService.logListenHistory(roomId, userId, { url: videoUrl, title, thumbnail, type })
+          .catch(() => {});
+      }
     } catch (err) {
       logger.error('video:change_url error', { err: err.message });
     }

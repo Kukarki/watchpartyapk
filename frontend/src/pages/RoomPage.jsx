@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
@@ -24,6 +24,15 @@ export default function RoomPage() {
   const { connected }        = useSocketContext();
   const navigate             = useNavigate();
   const [sidebarTab, setSidebarTab] = useState('chat');
+
+  // A "music" room slipped in via /room/:id — send it to the right page.
+  useEffect(() => {
+    if (room && room.roomType === 'music') {
+      navigate(`/music-room/${room.id}`, { replace: true });
+    }
+  }, [room, navigate]);
+
+  if (room && room.roomType === 'music') return null;
 
   if (!room) {
     return (

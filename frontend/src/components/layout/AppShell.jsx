@@ -4,6 +4,7 @@ import { useFriendsStore } from '@/store/friendsStore.js';
 
 const NAV_ITEMS = [
   { to: '/home',    label: 'Home',    icon: '🏠' },
+  { to: '/music',   label: 'Music',   icon: '🎵' },
   { to: '/friends', label: 'Friends', icon: '👥' },
 ];
 

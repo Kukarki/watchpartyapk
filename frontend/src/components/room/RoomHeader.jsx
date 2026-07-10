@@ -49,7 +49,7 @@ export default function RoomHeader() {
               </span>
             </div>
             <p className="text-dim text-xs badge-online">
-              {members.length} watching
+              {members.length} {room?.roomType === 'music' ? 'listening' : 'watching'}
             </p>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function RoomHeader() {
               onClick={() => setShowUrlInput(true)}
               className="btn-ghost text-sm w-full justify-start text-dim"
             >
-              🎬 Change video URL...
+              {room?.roomType === 'music' ? '🎵 Change track URL...' : '🎬 Change video URL...'}
             </button>
           )}
         </div>

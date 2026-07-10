@@ -140,8 +140,8 @@ export function RoomProvider({ children }) {
     store.setVideoState({ currentTime, updatedAt: timestamp });
   }, [emit, roomId, store]);
 
-  const sendChangeUrl = useCallback((videoUrl) => {
-    emit('video:change_url', { roomId, videoUrl });
+  const sendChangeUrl = useCallback((videoUrl, meta = {}) => {
+    emit('video:change_url', { roomId, videoUrl, title: meta.title, thumbnail: meta.thumbnail, type: meta.type });
     store.setVideoUrl(videoUrl);
   }, [emit, roomId]);
 

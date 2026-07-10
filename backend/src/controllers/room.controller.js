@@ -4,7 +4,7 @@ import { logger } from '../utils/logger.js';
 
 export async function createRoom(req, res, next) {
   try {
-    const { name, videoUrl } = req.body;
+    const { name, videoUrl, roomType } = req.body;
     const { userId, displayName } = req.user;
     if (!name?.trim()) return res.status(400).json({ error: 'Room name is required' });
 
@@ -13,6 +13,7 @@ export async function createRoom(req, res, next) {
       hostId:   userId,
       hostName: displayName || '',
       videoUrl: videoUrl || '',
+      roomType: roomType === 'music' ? 'music' : 'watch',
     });
 
     res.status(201).json({ room });

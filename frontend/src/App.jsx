@@ -13,6 +13,9 @@ import JoinPage            from '@/pages/JoinPage.jsx';
 import LoginPage           from '@/pages/LoginPage.jsx';
 import AuthCallbackPage    from '@/pages/AuthCallbackPage.jsx';
 import RoomPage            from '@/pages/RoomPage.jsx';
+import MusicRoomPage       from '@/pages/MusicRoomPage.jsx';
+import MusicPage           from '@/pages/MusicPage.jsx';
+import PlaylistDetailPage  from '@/pages/PlaylistDetailPage.jsx';
 import PlatformPage        from '@/pages/PlatformPage.jsx';
 import FriendsPage         from '@/pages/FriendsPage.jsx';
 
@@ -36,11 +39,22 @@ export default function App() {
             <Route path="/home" element={<HomePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/friends" element={<FriendsPage />} />
+            <Route path="/music" element={<MusicPage />} />
+            <Route path="/music/playlist/:playlistId" element={<PlaylistDetailPage />} />
+            <Route path="/music/shared/:shareCode" element={<PlaylistDetailPage />} />
             <Route
               path="/room/:roomId"
               element={
                 <RoomProvider>
                   <RoomPage />
+                </RoomProvider>
+              }
+            />
+            <Route
+              path="/music-room/:roomId"
+              element={
+                <RoomProvider>
+                  <MusicRoomPage />
                 </RoomProvider>
               }
             />
