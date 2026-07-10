@@ -40,7 +40,11 @@ class SpotifyService {
         redirect_uri: config.spotify.redirectUri,
       }),
     });
-    if (!res.ok) throw httpError(502, 'Spotify token exchange failed — try connecting again');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      logger.error('Spotify token exchange failed', { status: res.status, body, redirectUri: config.spotify.redirectUri });
+      throw httpError(502, 'Spotify token exchange failed — try connecting again');
+    }
     return res.json(); // { access_token, refresh_token, expires_in, ... }
   }
 
@@ -50,7 +54,11 @@ class SpotifyService {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basicAuthHeader() },
       body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }),
     });
-    if (!res.ok) throw httpError(502, 'Spotify token refresh failed');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      logger.error('Spotify token refresh failed', { status: res.status, body });
+      throw httpError(502, 'Spotify token refresh failed');
+    }
     return res.json(); // { access_token, expires_in, refresh_token? }
   }
 
@@ -129,7 +137,11 @@ class SpotifyService {
 
   async _fetchProfile(accessToken) {
     const res = await fetch(`${API_BASE}/me`, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) throw httpError(502, 'Failed to fetch Spotify profile');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      logger.error('Failed to fetch Spotify profile', { status: res.status, body });
+      throw httpError(502, 'Failed to fetch Spotify profile');
+    }
     return res.json();
   }
 }
