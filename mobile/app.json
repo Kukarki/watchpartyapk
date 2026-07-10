@@ -40,6 +40,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "react-native-webrtc",
       "expo-video",
       "expo-status-bar",
       "expo-font",
@@ -59,7 +60,8 @@
           "color": "#F5A623",
           "sounds": []
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
