@@ -41,6 +41,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }],
       "expo-video",
       "expo-status-bar",
       "expo-font",
@@ -61,7 +62,8 @@
           "sounds": []
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
