@@ -62,7 +62,8 @@ export async function logout() {
 }
 
 export async function loginWithGoogle(): Promise<User> {
-  const redirectUrl = Linking.createURL('auth/callback');
+  // Hardcoded to match exactly what's registered in Supabase dashboard
+  const redirectUrl = 'watchparty://auth/callback';
   const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
 
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
