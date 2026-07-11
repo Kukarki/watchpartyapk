@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.watchparty.app",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#0d0d14",
         "foregroundImage": "./assets/android-icon-foreground.png",
