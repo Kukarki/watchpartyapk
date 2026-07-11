@@ -8,7 +8,7 @@ import { authLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
-router.post('/guest', (req, res) => res.status(403).json({ error: 'Guest access is disabled. Please sign in or sign up.' }));
+router.post('/guest',             authLimiter, guestLogin);
 router.post('/register',          authLimiter, register);
 router.post('/login',             authLimiter, login);
 router.post('/supabase-callback', authLimiter, supabaseCallback);
