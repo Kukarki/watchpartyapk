@@ -20,6 +20,8 @@ import SpotifyCallbackPage from '@/pages/SpotifyCallbackPage.jsx';
 import YouTubeCallbackPage from '@/pages/YouTubeCallbackPage.jsx';
 import PlatformPage        from '@/pages/PlatformPage.jsx';
 import FriendsPage         from '@/pages/FriendsPage.jsx';
+import GamesPage           from '@/pages/GamesPage.jsx';
+import GameRoomPage        from '@/pages/GameRoomPage.jsx';
 
 export default function App() {
   return (
@@ -46,6 +48,7 @@ export default function App() {
             <Route path="/music/shared/:shareCode" element={<PlaylistDetailPage />} />
             <Route path="/auth/spotify/callback" element={<SpotifyCallbackPage />} />
             <Route path="/auth/youtube/callback" element={<YouTubeCallbackPage />} />
+            <Route path="/games" element={<GamesPage />} />
             <Route
               path="/room/:roomId"
               element={
@@ -59,6 +62,14 @@ export default function App() {
               element={
                 <RoomProvider>
                   <MusicRoomPage />
+                </RoomProvider>
+              }
+            />
+            <Route
+              path="/game-room/:roomId"
+              element={
+                <RoomProvider>
+                  <GameRoomPage />
                 </RoomProvider>
               }
             />

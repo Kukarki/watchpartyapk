@@ -9,7 +9,7 @@ class RoomService {
 
   // ── Rooms ──────────────────────────────────────────────────────────────────
 
-  async createRoom({ name, hostId, hostName = '', videoUrl = '', roomType = 'watch' }) {
+  async createRoom({ name, hostId, hostName = '', videoUrl = '', roomType = 'watch', gameType = null }) {
     const roomId = uuidv4().slice(0, 8).toUpperCase();
 
     const { data, error } = await this.sb
@@ -25,12 +25,13 @@ class RoomService {
         video_position:   0,
         state_updated_at: new Date().toISOString(),
         room_type:        roomType,
+        game_type:        gameType,
       })
       .select()
       .single();
 
     if (error) throw error;
-    logger.info('Room created', { roomId, hostId, roomType });
+    logger.info('Room created', { roomId, hostId, roomType, gameType });
     return this._mapRoom(data);
   }
 
@@ -227,6 +228,7 @@ class RoomService {
       hostId:   row.host_id,
       isPublic: row.is_public ?? true,
       roomType: row.room_type || 'watch',
+      gameType: row.game_type || null,
       videoState: {
         videoUrl:    row.current_url       || '',
         isPlaying:   row.is_playing        ?? false,

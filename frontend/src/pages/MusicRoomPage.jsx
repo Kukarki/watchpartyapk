@@ -62,14 +62,13 @@ export default function MusicRoomPage() {
     }
   };
 
-  // A "watch" room slipped in via /music-room/:id — send it to the right page.
+  // A "watch"/"game" room slipped in via /music-room/:id — send it to the right page.
   useEffect(() => {
-    if (room && room.roomType === 'watch') {
-      navigate(`/room/${room.id}`, { replace: true });
-    }
+    if (room && room.roomType === 'watch') navigate(`/room/${room.id}`, { replace: true });
+    if (room && room.roomType === 'game') navigate(`/game-room/${room.id}`, { replace: true });
   }, [room, navigate]);
 
-  if (room && room.roomType === 'watch') return null;
+  if (room && (room.roomType === 'watch' || room.roomType === 'game')) return null;
 
   if (!room) {
     return (

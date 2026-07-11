@@ -88,6 +88,29 @@ export function RoomProvider({ children }) {
       'voice:channel_members': ({ channelId, memberIds }) => {
         store.setChannelMembers(channelId, memberIds);
       },
+
+      'game:state': ({ state, events }) => {
+        store.setGameState(state);
+        for (const evt of events || []) {
+          const player = state.players?.find((p) => p.userId === evt.playerId);
+          const name = player?.displayName || 'Someone';
+          if (evt.type === 'captured') {
+            toast(`${name} captured a token!`, { icon: '💥' });
+          } else if (evt.type === 'token_finished') {
+            toast(`${name} got a token home!`, { icon: '🏠' });
+          } else if (evt.type === 'game_won') {
+            toast.success(`${name} won the game! 🎉`, { duration: 6000 });
+          } else if (evt.type === 'forfeit_three_sixes') {
+            toast(`${name} rolled three 6s in a row — turn forfeited!`, { icon: '😬' });
+          } else if (evt.type === 'game_started') {
+            toast.success('Game started!');
+          }
+        }
+      },
+
+      'game:error': ({ message }) => {
+        toast.error(message || 'Game error');
+      },
     };
 
     Object.entries(handlers).forEach(([event, handler]) => s.on(event, handler));
@@ -187,12 +210,21 @@ export function RoomProvider({ children }) {
     emit('voice:mute', { roomId, isMuted: next });
   }, [emit, roomId]);
 
+  const startGame = useCallback(() => {
+    emit('game:start', { roomId });
+  }, [emit, roomId]);
+
+  const sendGameAction = useCallback((action) => {
+    emit('game:action', { roomId, action });
+  }, [emit, roomId]);
+
   return (
     <RoomContext.Provider value={{
       roomId,
       sendPlay, sendPause, sendSeek, sendChangeUrl, requestSync,
       sendMessage, sendReaction, sendTyping,
       joinVoice, leaveVoice, toggleMute,
+      startGame, sendGameAction,
     }}>
       {children}
     </RoomContext.Provider>

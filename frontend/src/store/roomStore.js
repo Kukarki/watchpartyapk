@@ -13,6 +13,9 @@ export const useRoomStore = create((set, get) => ({
     updatedAt: 0,
   },
 
+  // Game (Ludo etc.) — null until a game has been started in this room
+  gameState: null,
+
   // Chat
   messages: [],
   typingUsers: {},   // { userId: { displayName, timeout } }
@@ -52,6 +55,10 @@ export const useRoomStore = create((set, get) => ({
 
   setVideoUrl: (url) =>
     set((s) => ({ videoState: { ...s.videoState, videoUrl: url, currentTime: 0, isPlaying: false } })),
+
+  // ── Game ──────────────────────────────────────────────
+
+  setGameState: (gameState) => set({ gameState }),
 
   // ── Chat ──────────────────────────────────────────────
 
@@ -152,6 +159,7 @@ export const useRoomStore = create((set, get) => ({
       room: null,
       members: [],
       videoState: { videoUrl: '', isPlaying: false, currentTime: 0, updatedAt: 0 },
+      gameState: null,
       messages: [],
       typingUsers: {},
       voiceMembers: {},

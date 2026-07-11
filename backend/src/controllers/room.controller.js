@@ -2,18 +2,23 @@ import { roomService } from '../services/room.service.js';
 import { isSupabaseConnected } from '../config/supabase.js';
 import { logger } from '../utils/logger.js';
 
+const ROOM_TYPES = ['watch', 'music', 'game'];
+
 export async function createRoom(req, res, next) {
   try {
-    const { name, videoUrl, roomType } = req.body;
+    const { name, videoUrl, roomType, gameType } = req.body;
     const { userId, displayName } = req.user;
     if (!name?.trim()) return res.status(400).json({ error: 'Room name is required' });
+
+    const resolvedRoomType = ROOM_TYPES.includes(roomType) ? roomType : 'watch';
 
     const room = await roomService.createRoom({
       name:     name.trim(),
       hostId:   userId,
       hostName: displayName || '',
       videoUrl: videoUrl || '',
-      roomType: roomType === 'music' ? 'music' : 'watch',
+      roomType: resolvedRoomType,
+      gameType: resolvedRoomType === 'game' ? (gameType || null) : null,
     });
 
     res.status(201).json({ room });
