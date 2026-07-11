@@ -7,6 +7,7 @@ import { historyApi } from '@/api/history.api.js';
 import { spotifyApi } from '@/api/spotify.api.js';
 import { youtubeApi } from '@/api/youtube.api.js';
 import { parseVideoUrl } from '@/utils/videoUtils.js';
+import MusicSearch from '@/components/music/MusicSearch.jsx';
 import toast from 'react-hot-toast';
 
 function timeAgo(iso) {
@@ -32,6 +33,7 @@ export default function MusicPage() {
   const [youtube, setYoutube] = useState(null); // null = loading, else { connected, playlists }
   const [connectingYoutube, setConnectingYoutube] = useState(false);
   const [importingYtPlaylist, setImportingYtPlaylist] = useState(null);
+  const [addedVideoIds, setAddedVideoIds] = useState(new Set());
 
   const refreshPlaylists = () => playlistApi.list().then((d) => setPlaylists(d.playlists || [])).catch(() => {});
 
@@ -118,6 +120,28 @@ export default function MusicPage() {
     }
   };
 
+  // One-click add from the lobby search — goes straight into your most
+  // recently used playlist (playlists are sorted by updated_at desc), or a
+  // fresh "Quick Adds" playlist if you don't have one yet. No picker, no
+  // extra clicks — that's the whole point of it living here vs. in a room.
+  const handleQuickAdd = async (result) => {
+    try {
+      let target = playlists[0];
+      if (!target) {
+        const { playlist } = await playlistApi.create('Quick Adds');
+        target = playlist;
+      }
+      await playlistApi.addTrack(target.id, {
+        url: result.url, title: result.title, thumbnail: result.thumbnail, type: 'youtube',
+      });
+      setAddedVideoIds((s) => new Set(s).add(result.videoId));
+      toast.success(`Added to "${target.name}"`);
+      refreshPlaylists();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add track');
+    }
+  };
+
   const handleCreatePlaylist = async () => {
     setCreatingPlaylist(true);
     try {
@@ -160,6 +184,13 @@ export default function MusicPage() {
               {creating ? 'Starting...' : 'Start Party →'}
             </button>
           </form>
+        </div>
+
+        {/* Quick add — search any song, one click adds it to your playlist */}
+        <div className="card p-6 mb-8 animate-slide-up" style={{ animationDelay: '0.08s' }}>
+          <h2 className="font-display font-semibold text-bright text-base mb-1">Find Music</h2>
+          <p className="text-dim text-xs mb-3">Search any song — one click adds it to your most recent playlist.</p>
+          <MusicSearch onAdd={handleQuickAdd} addedIds={addedVideoIds} />
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8 animate-slide-up" style={{ animationDelay: '0.1s' }}>
