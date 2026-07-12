@@ -19,9 +19,11 @@ import PlaylistDetailPage  from '@/pages/PlaylistDetailPage.jsx';
 import SpotifyCallbackPage from '@/pages/SpotifyCallbackPage.jsx';
 import YouTubeCallbackPage from '@/pages/YouTubeCallbackPage.jsx';
 import PlatformPage        from '@/pages/PlatformPage.jsx';
+import HowToPage           from '@/pages/HowToPage.jsx';
 import FriendsPage         from '@/pages/FriendsPage.jsx';
 import GamesPage           from '@/pages/GamesPage.jsx';
 import GameRoomPage        from '@/pages/GameRoomPage.jsx';
+import InstallPrompt       from '@/components/pwa/InstallPrompt.jsx';
 
 export default function App() {
   return (
@@ -37,6 +39,7 @@ export default function App() {
           <Route path="/login"              element={<LoginPage />} />
           <Route path="/auth/callback"      element={<AuthCallbackPage />} />
           <Route path="/platform/:platformId" element={<PlatformPage />} />
+          <Route path="/how-to"               element={<HowToPage />} />
 
           {/* Protected */}
           <Route element={<ProtectedRoute />}>
@@ -77,6 +80,8 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+
+        <InstallPrompt />
 
         <Toaster
           position="top-center"

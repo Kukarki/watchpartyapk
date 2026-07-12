@@ -16,3 +16,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Register the service worker so WatchParty is installable as a PWA.
+// Production only — in dev it would cache assets and interfere with HMR.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* SW registration is best-effort; the app works without it. */
+    });
+  });
+}
