@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createRoom, getRoom, getChatHistory, getPublicRooms, getRecentRooms } from '../controllers/room.controller.js';
+import { createRoom, getRoom, getChatHistory, getPublicRooms, getRecentRooms, getRoomHistory } from '../controllers/room.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import queueRoutes from './queue.routes.js';
 import pollRoutes  from './poll.routes.js';
@@ -11,6 +11,7 @@ router.use(authenticate);
 router.get('/',           getPublicRooms);
 router.post('/',          createRoom);
 router.get('/recent',     getRecentRooms);
+router.get('/:roomId/history', getRoomHistory);
 router.get('/:roomId',    getRoom);
 router.get('/:roomId/chat', getChatHistory);
 

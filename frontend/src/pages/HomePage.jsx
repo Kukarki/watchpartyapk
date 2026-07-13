@@ -5,6 +5,7 @@ import { roomApi } from '@/api/room.api.js';
 import { useFriendsStore } from '@/store/friendsStore.js';
 import AppShell from '@/components/layout/AppShell.jsx';
 import Avatar from '@/components/ui/Avatar.jsx';
+import RoomHistoryModal from '@/components/room/RoomHistoryModal.jsx';
 import toast from 'react-hot-toast';
 
 function timeAgo(iso) {
@@ -117,6 +118,7 @@ export default function HomePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [recentRooms, setRecentRooms] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [historyRoomId, setHistoryRoomId] = useState(null);
 
   useEffect(() => {
     roomApi.getRecentRooms()
@@ -292,11 +294,14 @@ export default function HomePage() {
             ) : (
               <div className="space-y-1">
                 {recentRooms.map((r) => (
-                  <button
+                  <div
                     key={r.roomId}
-                    onClick={() => navigate(`/room/${r.roomId}`)}
+                    onClick={() => setHistoryRoomId(r.roomId)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && setHistoryRoomId(r.roomId)}
                     className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg
-                               hover:bg-raised transition-colors text-left group"
+                               hover:bg-raised transition-colors text-left group cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg bg-amber/10 border border-amber/20
                                      flex items-center justify-center text-sm shrink-0">
@@ -306,10 +311,15 @@ export default function HomePage() {
                       <p className="text-sm text-bright truncate">{r.name}</p>
                       <p className="text-xs text-dim">{timeAgo(r.joinedAt)}</p>
                     </div>
-                    <span className="text-dim text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/room/${r.roomId}`); }}
+                      className="text-dim hover:text-amber text-xs opacity-0 group-hover:opacity-100
+                                 transition-opacity shrink-0"
+                    >
                       Join →
-                    </span>
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -386,6 +396,10 @@ export default function HomePage() {
           ))}
         </div>
       </main>
+
+      {historyRoomId && (
+        <RoomHistoryModal roomId={historyRoomId} onClose={() => setHistoryRoomId(null)} />
+      )}
     </AppShell>
   );
 }

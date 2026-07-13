@@ -67,3 +67,14 @@ export async function getRecentRooms(req, res, next) {
     next(err);
   }
 }
+
+export async function getRoomHistory(req, res, next) {
+  try {
+    if (!isSupabaseConnected()) return res.status(404).json({ error: 'Room not found' });
+    const detail = await roomService.getRoomHistoryDetail(req.params.roomId, req.user.userId);
+    if (!detail) return res.status(404).json({ error: 'Room not found' });
+    res.json({ history: detail });
+  } catch (err) {
+    next(err);
+  }
+}

@@ -12,6 +12,9 @@ export const roomApi = {
 
   getRecentRooms: () =>
     apiClient.get('/rooms/recent').then((r) => r.data),
+
+  getRoomHistory: (roomId) =>
+    apiClient.get(`/rooms/${roomId}/history`).then((r) => r.data),
 };
 
 export const queueApi = {

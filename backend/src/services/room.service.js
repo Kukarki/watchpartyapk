@@ -130,6 +130,60 @@ class RoomService {
       }));
   }
 
+  // Room history detail — who was ever in a room + what was last playing.
+  // Gated: only someone who has actually visited the room before can view it.
+  async getRoomHistoryDetail(roomId, requestingUserId) {
+    const { data: visited } = await this.sb
+      .from('user_room_history')
+      .select('user_id')
+      .eq('room_id', roomId)
+      .eq('user_id', requestingUserId)
+      .maybeSingle();
+    if (!visited) return null;
+
+    const { data: room, error: roomErr } = await this.sb
+      .from('rooms')
+      .select('room_id, name, host_id, host_name, current_url, created_at')
+      .eq('room_id', roomId)
+      .single();
+    if (roomErr || !room) return null;
+
+    const { data: historyRows } = await this.sb
+      .from('user_room_history')
+      .select('user_id, joined_at')
+      .eq('room_id', roomId)
+      .order('joined_at', { ascending: false });
+
+    const rows = historyRows || [];
+    const userIds = rows.map((r) => r.user_id);
+    const { data: profiles } = userIds.length
+      ? await this.sb.from('profiles').select('id, display_name, username, avatar_url').in('id', userIds)
+      : { data: [] };
+    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+
+    const participants = rows.map((r) => {
+      const p = profileMap.get(r.user_id);
+      return {
+        userId:      r.user_id,
+        displayName: p?.display_name || 'Unknown',
+        username:    p?.username || null,
+        avatar:      p?.avatar_url || '',
+        joinedAt:    r.joined_at,
+      };
+    });
+
+    return {
+      roomId:           room.room_id,
+      name:             room.name,
+      hostId:           room.host_id,
+      hostName:         room.host_name,
+      createdAt:        room.created_at,
+      lastVideoUrl:     room.current_url || '',
+      participantCount: participants.length,
+      participants,
+    };
+  }
+
   async getRoomMembers(roomId) {
     const { data, error } = await this.sb
       .from('room_members')
