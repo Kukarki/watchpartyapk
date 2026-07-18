@@ -34,6 +34,7 @@ function mapUser(user: any): User {
     id: user.userId ?? user.id,
     email: user.email,
     username: user.displayName ?? user.username ?? 'Guest',
+    handle: user.username,
     avatar_url: user.avatar ?? user.avatar_url,
     is_guest: (user.provider ?? '').toLowerCase() === 'guest',
   };
@@ -41,15 +42,16 @@ function mapUser(user: any): User {
 
 export function mapRoom(room: any): Room {
   const videoState = room.videoState ?? {};
+  const id = room.id ?? room.room_id ?? room.roomId ?? '';
   return {
-    id: room.id ?? room.room_id,
+    id,
     name: room.name,
-    code: room.code ?? room.id ?? room.room_id,
-    host_id: room.hostId ?? room.host_id,
+    code: room.code ?? id,
+    host_id: room.hostId ?? room.host_id ?? '',
     current_video_url: videoState.videoUrl ?? room.current_video_url ?? room.current_url ?? '',
     current_time: videoState.currentTime ?? room.current_time ?? room.video_position ?? 0,
     is_playing: videoState.isPlaying ?? room.is_playing ?? false,
-    created_at: room.created_at ?? new Date().toISOString(),
+    created_at: room.created_at ?? room.joinedAt ?? new Date().toISOString(),
     member_count: room.member_count ?? 0,
   };
 }
@@ -86,6 +88,7 @@ export function mapQueueItem(item: any): QueueItem {
     title: item.title,
     url: item.url,
     added_by: item.added_by,
+    added_by_name: item.added_by_name,
     upvotes: item.vote_count ?? item.upvotes ?? 0,
     thumbnail: item.thumbnail,
   };
@@ -107,18 +110,29 @@ export const authApi = {
       .then((res) => ({ ...res, data: { ...res.data, user: mapUser(res.data.user) } })),
   me: () => api.get('/auth/me')
     .then((res) => ({ ...res, data: { ...res.data, user: mapUser(res.data.user) } })),
+  updateProfile: (fields: { displayName?: string; avatar?: string }) =>
+    api.patch('/auth/profile', fields)
+      .then((res) => ({ ...res, data: { ...res.data, user: mapUser(res.data.user ?? {}) } })),
+  deleteAccount: () => api.delete('/auth/account'),
 };
 
 // Rooms
+const mapRooms = (res: any) => ({ ...res, data: { ...res.data, rooms: (res.data.rooms ?? []).map(mapRoom) } });
+
 export const roomsApi = {
-  create: (name: string) => api.post('/rooms', { name })
-    .then((res) => ({ ...res, data: { ...res.data, room: mapRoom(res.data.room) } })),
+  create: (name: string, opts?: { roomType?: string; gameType?: string; videoUrl?: string }) =>
+    api.post('/rooms', { name, ...opts })
+      .then((res) => ({ ...res, data: { ...res.data, room: mapRoom(res.data.room) } })),
   join: (code: string) => api.get(`/rooms/${code}`)
     .then((res) => ({ ...res, data: { ...res.data, room: mapRoom(res.data.room) } })),
   get: (id: string) => api.get(`/rooms/${id}`)
     .then((res) => ({ ...res, data: { ...res.data, room: mapRoom(res.data.room) } })),
-  list: () => api.get('/rooms')
-    .then((res) => ({ ...res, data: { ...res.data, rooms: (res.data.rooms ?? []).map(mapRoom) } })),
+  // User's own rooms (recently visited/hosted) — used in "My Rooms" tab
+  recent: () => api.get('/rooms/recent').then(mapRooms),
+  // All public rooms — used in "Discover" tab
+  listPublic: () => api.get('/rooms').then(mapRooms),
+  // Keep list() as alias for recent() so any old callsites still work
+  list: () => api.get('/rooms/recent').then(mapRooms),
   getMembers: (_id: string) => Promise.resolve({ data: { members: [] as RoomMember[] } }),
   leave: (_id: string) => Promise.resolve({ data: { ok: true } }),
 };
@@ -134,12 +148,61 @@ export const chatApi = {
 export const queueApi = {
   get: (roomId: string) => api.get(`/rooms/${roomId}/queue`)
     .then((res) => ({ ...res, data: { ...res.data, items: (res.data.queue ?? []).map(mapQueueItem) } })),
-  add: (roomId: string, url: string, title: string) =>
-    api.post(`/rooms/${roomId}/queue`, { url, title })
-      .then((res) => ({ ...res, data: { ...res.data, item: mapQueueItem(res.data.item) } })),
+  list: (roomId: string) => queueApi.get(roomId),
+  add: (roomId: string, payload: { url: string; title: string; thumbnail?: string; type?: string }) =>
+    api.post(`/rooms/${roomId}/queue`, payload)
+      .then((res) => ({ ...res, data: { ...res.data, item: mapQueueItem(res.data.item ?? {}) } })),
   remove: (roomId: string, itemId: string) =>
     api.delete(`/rooms/${roomId}/queue/${itemId}`),
   upvote: (roomId: string, itemId: string) =>
     api.post(`/rooms/${roomId}/queue/${itemId}/vote`)
-      .then((res) => ({ ...res, data: { ...res.data, item: mapQueueItem(res.data.item) } })),
+      .then((res) => ({ ...res, data: { ...res.data, item: mapQueueItem(res.data.item ?? {}) } })),
+  vote: (roomId: string, itemId: string) => queueApi.upvote(roomId, itemId),
+  playNext: (roomId: string, itemId: string) =>
+    api.post(`/rooms/${roomId}/queue/${itemId}/play-next`),
+};
+
+// Polls
+export const pollApi = {
+  active: (roomId: string) => api.get(`/rooms/${roomId}/poll/active`),
+  create: (roomId: string, question: string, options: string[]) =>
+    api.post(`/rooms/${roomId}/poll`, { question, options }),
+  vote: (roomId: string, pollId: string, optionIndex: number) =>
+    api.post(`/rooms/${roomId}/poll/${pollId}/vote/${optionIndex}`),
+  end: (roomId: string, pollId: string) =>
+    api.post(`/rooms/${roomId}/poll/${pollId}/end`),
+};
+
+// Friends
+export const friendApi = {
+  list: () => api.get('/friends'),
+  requests: () => api.get('/friends/requests'),
+  search: (query: string) =>
+    api.get(`/friends/search?q=${encodeURIComponent(query)}`),
+  send: (toUserId: string) =>
+    api.post('/friends/request', { toUserId }),
+  sendByEmail: (email: string) =>
+    api.post('/friends/request/email', { email }),
+  respond: (requestId: string, action: 'accept' | 'decline') =>
+    api.post(`/friends/request/${requestId}/respond`, { action }),
+  remove: (friendId: string) =>
+    api.delete(`/friends/${friendId}`),
+  setNickname: (friendId: string, nickname: string | null) =>
+    api.put(`/friends/${friendId}/nickname`, { nickname }),
+};
+
+// Playlists
+export const playlistApi = {
+  list: () => api.get('/playlists'),
+  create: (name: string) => api.post('/playlists', { name }),
+  get: (id: string) => api.get(`/playlists/${id}`),
+  getShared: (shareToken: string) => api.get(`/playlists/shared/${shareToken}`),
+  update: (id: string, fields: { name?: string }) => api.patch(`/playlists/${id}`, fields),
+  delete: (id: string) => api.delete(`/playlists/${id}`),
+  addTrack: (id: string, track: { url: string; title: string; thumbnail?: string }) =>
+    api.post(`/playlists/${id}/tracks`, track),
+  removeTrack: (id: string, trackId: string) =>
+    api.delete(`/playlists/${id}/tracks/${trackId}`),
+  importToRoom: (id: string, roomId: string) =>
+    api.post(`/playlists/${id}/import`, { roomId }),
 };
