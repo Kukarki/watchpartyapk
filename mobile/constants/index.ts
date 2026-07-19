@@ -127,4 +127,8 @@ export const SOCKET_EVENTS = {
   CHAT_STOP_TYPING: 'chat:stop_typing',
   SCREEN_SHARE_START: 'screenshare:start',
   SCREEN_SHARE_STOP: 'screenshare:stop',
+  PRESENCE_UPDATE: 'presence:update',
+  PRESENCE_SNAPSHOT: 'presence:snapshot',
+  FRIEND_INVITED: 'friend:invited',
+  FRIEND_INVITE: 'friend:invite',
 } as const;

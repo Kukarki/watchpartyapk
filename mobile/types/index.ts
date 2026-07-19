@@ -2,6 +2,7 @@ export interface User {
   id: string;
   email?: string;
   username: string;
+  handle?: string;
   avatar_url?: string;
   is_guest: boolean;
 }
@@ -26,6 +27,7 @@ export interface ChatMessage {
   content: string;
   created_at: string;
   reactions?: Record<string, string[]>;
+  replyTo?: string;
 }
 
 export interface QueueItem {
@@ -34,6 +36,7 @@ export interface QueueItem {
   title: string;
   url: string;
   added_by: string;
+  added_by_name?: string;
   upvotes: number;
   thumbnail?: string;
 }
@@ -70,3 +73,19 @@ export interface VideoState {
 }
 
 export type AuthMode = 'login' | 'register' | 'guest';
+
+export interface FriendRequest {
+  requestId: string;
+  fromUserId: string;
+  fromUsername: string;
+  fromAvatar?: string;
+  createdAt: string;
+}
+
+export interface PlaylistTrack {
+  id: string;
+  url: string;
+  title: string;
+  thumbnail?: string;
+  addedAt: string;
+}

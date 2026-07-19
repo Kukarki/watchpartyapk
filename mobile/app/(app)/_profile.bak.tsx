@@ -10,66 +10,26 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { format } from 'date-fns';
 import { COLORS, SPACE, RADIUS, SHADOW } from '@/constants';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/Button';
+import { authApi } from '@/services/api';
 import { getHistory, clearHistory, type HistoryEntry } from '@/services/history';
+import Toast from 'react-native-toast-message';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   useEffect(() => {
-    getHistory().then((h) => {
+    getHistory(user?.id).then((h) => {
       setHistory(h);
       setHistoryLoaded(true);
     });
-  }, []);
-
-  async function pickAvatar() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
-    }
-  }
-
-  async function takePhoto() {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow camera access to take a profile photo.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
-    }
-  }
-
-  function showAvatarOptions() {
-    Alert.alert('Profile Photo', 'Choose an option', [
-      { text: 'Take Photo', onPress: takePhoto },
-      { text: 'Choose from Library', onPress: pickAvatar },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }
+  }, [user?.id]);
 
   function confirmLogout() {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -90,14 +50,38 @@ export default function ProfileScreen() {
         text: 'Clear',
         style: 'destructive',
         onPress: async () => {
-          await clearHistory();
+          await clearHistory(user?.id);
           setHistory([]);
         },
       },
     ]);
   }
 
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authApi.deleteAccount();
+              await logout();
+              router.replace('/(auth)/login');
+            } catch {
+              Toast.show({ type: 'error', text1: 'Could not delete account. Try again.' });
+            }
+          },
+        },
+      ]
+    );
+  }
+
   const initials = user?.username?.charAt(0).toUpperCase() ?? '?';
+  const avatarUrl = user?.avatar_url;
 
   return (
     <ScrollView
@@ -107,20 +91,25 @@ export default function ProfileScreen() {
     >
       {/* ── Avatar ── */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity onPress={showAvatarOptions} style={styles.avatarWrap} activeOpacity={0.85}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/avatar-editor')}
+          style={styles.avatarWrap}
+          activeOpacity={0.85}
+        >
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
           ) : (
             <View style={styles.avatarFallback}>
-              <Text style={styles.avatarText}>{initials}</Text>
+              <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           )}
           <View style={styles.editBadge}>
-            <Ionicons name="camera" size={14} color={COLORS.background} />
+            <Ionicons name="brush-outline" size={13} color={COLORS.background} />
           </View>
         </TouchableOpacity>
 
         <Text style={styles.username}>{user?.username}</Text>
+        {user?.handle && <Text style={styles.handle}>@{user.handle}</Text>}
         {user?.email && <Text style={styles.email}>{user.email}</Text>}
 
         {user?.is_guest && (
@@ -129,6 +118,18 @@ export default function ProfileScreen() {
             <Text style={styles.guestText}>Guest Account</Text>
           </View>
         )}
+      </View>
+
+      {/* ── Quick actions ── */}
+      <View style={styles.quickRow}>
+        <TouchableOpacity style={styles.quickCard} onPress={() => router.push('/(app)/avatar-editor')}>
+          <Ionicons name="color-palette-outline" size={22} color={COLORS.primary} />
+          <Text style={styles.quickLabel}>Customize Avatar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickCard} onPress={() => router.push('/(app)/friends')}>
+          <Ionicons name="people-outline" size={22} color={COLORS.primary} />
+          <Text style={styles.quickLabel}>Friends</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Info card ── */}
@@ -158,42 +159,70 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Watch history ── */}
+      {/* ── Watch history (collapsible) ── */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
+        <TouchableOpacity
+          style={styles.sectionHeader}
+          onPress={() => setHistoryExpanded((v) => !v)}
+          activeOpacity={0.7}
+        >
           <Text style={styles.sectionTitle}>Watch History</Text>
-          {history.length > 0 && (
-            <TouchableOpacity onPress={confirmClearHistory}>
-              <Text style={styles.clearText}>Clear</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {!historyLoaded ? null : history.length === 0 ? (
-          <View style={styles.historyEmpty}>
-            <Ionicons name="time-outline" size={32} color={COLORS.borderStrong} />
-            <Text style={styles.historyEmptyText}>No watch history yet</Text>
+          <View style={styles.sectionHeaderRight}>
+            {historyLoaded && history.length > 0 && (
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{history.length}</Text>
+              </View>
+            )}
+            <Ionicons
+              name={historyExpanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={COLORS.muted}
+            />
           </View>
-        ) : (
-          history.map((h) => (
-            <View key={h.id + h.at} style={styles.historyItem}>
-              <View style={styles.historyIcon}>
-                <Ionicons name="play-circle" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+
+        {historyExpanded && (
+          <>
+            {history.length > 0 && (
+              <TouchableOpacity onPress={confirmClearHistory} style={styles.clearBtn}>
+                <Ionicons name="trash-outline" size={13} color={COLORS.danger} />
+                <Text style={styles.clearText}>Clear All</Text>
+              </TouchableOpacity>
+            )}
+            {!historyLoaded ? null : history.length === 0 ? (
+              <View style={styles.historyEmpty}>
+                <Ionicons name="time-outline" size={32} color={COLORS.borderStrong} />
+                <Text style={styles.historyEmptyText}>No watch history yet</Text>
               </View>
-              <View style={styles.historyInfo}>
-                <Text style={styles.historyName} numberOfLines={1}>{h.name}</Text>
-                <Text style={styles.historyMeta}>
-                  Code: <Text style={{ color: COLORS.primary, fontWeight: '700' }}>{h.code}</Text>
-                  {'  ·  '}
-                  {format(new Date(h.at), 'MMM d, h:mm a')}
-                </Text>
-              </View>
-            </View>
-          ))
+            ) : (
+              history.map((h) => (
+                <View key={h.id + h.at} style={styles.historyItem}>
+                  <View style={styles.historyIcon}>
+                    <Ionicons name="play-circle" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.historyInfo}>
+                    <Text style={styles.historyName} numberOfLines={1}>{h.name}</Text>
+                    <Text style={styles.historyMeta}>
+                      Code: <Text style={{ color: COLORS.primary, fontWeight: '700' }}>{h.code}</Text>
+                      {'  ·  '}
+                      {format(new Date(h.at), 'MMM d, h:mm a')}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </>
         )}
       </View>
 
+      {/* ── Actions ── */}
       <Button title="Sign Out" onPress={confirmLogout} variant="danger" style={{ marginTop: SPACE.sm }} />
+
+      {!user?.is_guest && (
+        <TouchableOpacity style={styles.deleteLink} onPress={confirmDeleteAccount}>
+          <Text style={styles.deleteLinkText}>Delete Account</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -210,7 +239,7 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: SPACE.lg, gap: SPACE.lg, paddingBottom: 40 },
+  content: { padding: SPACE.lg, gap: SPACE.lg, paddingBottom: 60 },
 
   avatarSection: { alignItems: 'center', gap: SPACE.sm, paddingVertical: SPACE.lg },
   avatarWrap: { position: 'relative' },
@@ -230,7 +259,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...SHADOW.accent,
   },
-  avatarText: { color: COLORS.background, fontSize: 38, fontWeight: '800' },
+  avatarInitials: { color: COLORS.background, fontSize: 38, fontWeight: '800' },
   editBadge: {
     position: 'absolute',
     bottom: 2,
@@ -245,6 +274,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.background,
   },
   username: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '800' },
+  handle: { color: COLORS.muted, fontSize: 14, fontWeight: '500' },
   email: { color: COLORS.textSecondary, fontSize: 14 },
   guestBadge: {
     flexDirection: 'row',
@@ -256,6 +286,19 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
   },
   guestText: { color: COLORS.warning, fontSize: 12, fontWeight: '600' },
+
+  quickRow: { flexDirection: 'row', gap: SPACE.md },
+  quickCard: {
+    flex: 1,
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '33',
+    padding: SPACE.md,
+    alignItems: 'center',
+    gap: SPACE.sm,
+  },
+  quickLabel: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '600', textAlign: 'center' },
 
   infoCard: {
     backgroundColor: COLORS.card,
@@ -292,6 +335,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: SPACE.sm,
   },
   sectionTitle: {
     color: COLORS.muted,
@@ -299,6 +343,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
+  },
+  sectionHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
+  countBadge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  countBadgeText: { color: COLORS.background, fontSize: 10, fontWeight: '800' },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-end',
   },
   clearText: { color: COLORS.danger, fontSize: 13, fontWeight: '600' },
 
@@ -330,4 +391,7 @@ const styles = StyleSheet.create({
   historyInfo: { flex: 1 },
   historyName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600' },
   historyMeta: { color: COLORS.muted, fontSize: 11, marginTop: 2 },
+
+  deleteLink: { alignItems: 'center', paddingVertical: SPACE.md },
+  deleteLinkText: { color: COLORS.danger, fontSize: 13, fontWeight: '500' },
 });

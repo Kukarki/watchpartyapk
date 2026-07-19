@@ -38,6 +38,8 @@ export function initSocketServer(httpServer) {
           provider:    decoded.provider || 'guest',
           authed:      true,
         };
+        // game-engine reads socket.data.userId
+        socket.data.userId = decoded.userId;
         return next();
       } catch (err) {
         // A token was provided and it failed verification → refuse.

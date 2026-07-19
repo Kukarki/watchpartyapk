@@ -6,7 +6,7 @@ import ActionSheet from '../ui/Sheet';
 import { Avatar, Btn, Card, Chips, Empty, Header, Screen, Txt } from '../ui/kit';
 import { c, r, sp } from '../ui/tokens';
 
-const FILTERS = [{ id: 'all', name: 'All' }, { id: 'friends', name: 'Friends' }, { id: 'mine', name: 'Mine' }];
+const FILTERS = [{ id: 'all', name: 'All' }];
 
 export default function MusicLobbyScreen({ rooms = [], onBack, onOpen, onCreate }) {
   const [filter, setFilter] = useState('all');

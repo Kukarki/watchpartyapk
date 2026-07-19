@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
+  BackHandler,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +37,17 @@ const PLATFORMS = [
   { name: 'Apple TV+', color: '#A3A3A3', bg: '#111111', icon: 'logo-apple'          as const },
 ];
 
+type Game = {
+  id: string; name: string; emoji: string;
+  players: string; bg: string; accent: string; soon?: boolean;
+};
+
+const GAMES: Game[] = [
+  { id: 'wildbeam',   name: 'WildBeam',    emoji: '🎴', players: '2–8 players', bg: '#12062a', accent: '#B7A8FF' },
+  { id: 'matchblitz', name: 'Match Blitz', emoji: '🧠', players: '2–6 players', bg: '#061a10', accent: '#35E0D0' },
+  { id: 'ludo',       name: 'Ludo',        emoji: '🎲', players: '2–4 players', bg: '#1a1200', accent: '#FFD700', soon: true },
+];
+
 type Tab = 'mine' | 'discover';
 
 export default function HomeScreen() {
@@ -56,6 +68,12 @@ export default function HomeScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [tab, setTab] = useState<Tab>('mine');
 
+  // Block hardware back button — never go back to login
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => handler.remove();
+  }, []);
+
   // Deep link auto-open join modal
   const { joinCode: joinCodeParam } = useLocalSearchParams<{ joinCode?: string }>();
   useEffect(() => {
@@ -66,8 +84,9 @@ export default function HomeScreen() {
   }, [joinCodeParam]);
 
   const fetchRooms = useCallback(async () => {
+    if (user?.is_guest) { setLoading(false); setRefreshing(false); return; }
     try {
-      const { data } = await roomsApi.list();
+      const { data } = await roomsApi.recent();
       setRooms(data.rooms ?? []);
     } catch {
       /* silent */
@@ -75,18 +94,13 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.is_guest]);
 
   const fetchPublicRooms = useCallback(async () => {
     setDiscoverLoading(true);
     try {
-      const api = roomsApi as Record<string, any>;
-      if (typeof api.listPublic === 'function') {
-        const { data } = await api.listPublic();
-        setPublicRooms(data.rooms ?? []);
-      } else {
-        setPublicRooms([]);
-      }
+      const { data } = await roomsApi.listPublic();
+      setPublicRooms(data.rooms ?? []);
     } catch {
       setPublicRooms([]);
     } finally {
@@ -146,6 +160,40 @@ export default function HomeScreen() {
     router.push(`/(app)/room/${room.id}`);
   }
 
+  async function launchGame(game: { id: string; name: string; soon?: boolean }) {
+    if (game.soon) {
+      Toast.show({ type: 'info', text1: `${game.name} coming soon!`, text2: 'Stay tuned for more games' });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const { data } = await roomsApi.create(`${game.name} Room`);
+      setRoom(data.room);
+      hapticSuccess();
+      router.push(`/(app)/room/${data.room.id}`);
+    } catch {
+      hapticError();
+      Toast.show({ type: 'error', text1: 'Could not create game room' });
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function createMusicRoom() {
+    setActionLoading(true);
+    try {
+      const { data } = await roomsApi.create('Music Room');
+      setRoom(data.room);
+      hapticSuccess();
+      router.push(`/(app)/room/${data.room.id}`);
+    } catch {
+      hapticError();
+      Toast.show({ type: 'error', text1: 'Could not create music room' });
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   const listData = tab === 'mine' ? rooms : publicRooms;
   const isListLoading = tab === 'mine' ? loading : discoverLoading;
   const firstLetter = user?.username?.charAt(0).toUpperCase() ?? '?';
@@ -171,12 +219,20 @@ export default function HomeScreen() {
                 <Text style={styles.greeting}>Hey, {user?.username} 👋</Text>
                 <Text style={styles.subGreet}>Ready to watch together?</Text>
               </View>
-              <TouchableOpacity
-                onPress={() => router.push('/(app)/profile')}
-                style={styles.avatar}
-              >
-                <Text style={styles.avatarText}>{firstLetter}</Text>
-              </TouchableOpacity>
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  onPress={() => router.push('/(app)/friends')}
+                  style={styles.friendsBtn}
+                >
+                  <Ionicons name="people-outline" size={22} color={COLORS.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/(app)/profile')}
+                  style={styles.avatar}
+                >
+                  <Text style={styles.avatarText}>{firstLetter}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* ── CTA cards ── */}
@@ -231,6 +287,47 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* ── Games section ── */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionLabel}>Games</Text>
+              <Text style={styles.sectionSubLabel}>Play with friends</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.gameRow}
+            >
+              {GAMES.map((g) => (
+                <TouchableOpacity
+                  key={g.id}
+                  style={[styles.gameCard, { backgroundColor: g.bg, borderColor: g.accent + '44' }]}
+                  onPress={() => launchGame(g)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.gameEmoji}>{g.emoji}</Text>
+                  <Text style={[styles.gameName, { color: g.accent }]}>{g.name}</Text>
+                  <Text style={styles.gamePlayers}>{g.players}</Text>
+                  {g.soon && (
+                    <View style={styles.soonBadge}>
+                      <Text style={styles.soonText}>Soon</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* ── Music section ── */}
+            <TouchableOpacity style={styles.musicCard} onPress={createMusicRoom} activeOpacity={0.85}>
+              <View style={[styles.musicIconWrap, { backgroundColor: '#2a0a18' }]}>
+                <Ionicons name="musical-notes" size={26} color="#FF6B9D" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.musicTitle}>Music Room</Text>
+                <Text style={styles.musicSub}>Listen together in sync</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.muted} />
+            </TouchableOpacity>
 
             {/* ── Tab row ── */}
             <View style={styles.tabRow}>
@@ -395,6 +492,17 @@ const styles = StyleSheet.create({
   },
   greeting: { color: COLORS.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   subGreet: { color: COLORS.textSecondary, fontSize: 14, marginTop: 2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
+  friendsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '44',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   avatar: {
     width: 44,
     height: 44,
@@ -527,6 +635,60 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { color: COLORS.textSecondary, fontSize: 18, fontWeight: '700' },
   emptySub: { color: COLORS.muted, fontSize: 14, textAlign: 'center' },
+
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: SPACE.sm,
+    paddingHorizontal: SPACE.lg,
+    marginTop: SPACE.lg,
+    marginBottom: SPACE.sm,
+  },
+  sectionSubLabel: { color: COLORS.muted, fontSize: 12 },
+
+  gameRow: { paddingHorizontal: SPACE.lg, gap: SPACE.sm, paddingBottom: SPACE.xs },
+  gameCard: {
+    width: 110,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACE.md,
+    gap: 4,
+    alignItems: 'flex-start',
+  },
+  gameEmoji: { fontSize: 28, marginBottom: 2 },
+  gameName: { fontSize: 13, fontWeight: '700' },
+  gamePlayers: { color: COLORS.muted, fontSize: 11 },
+  soonBadge: {
+    marginTop: 4,
+    backgroundColor: COLORS.borderStrong,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  soonText: { color: COLORS.muted, fontSize: 10, fontWeight: '700' },
+
+  musicCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.md,
+    marginHorizontal: SPACE.lg,
+    marginTop: SPACE.md,
+    marginBottom: SPACE.xs,
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#FF6B9D33',
+    padding: SPACE.md,
+  },
+  musicIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  musicTitle: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
+  musicSub: { color: COLORS.muted, fontSize: 12, marginTop: 2 },
 
   modal: {
     flex: 1,

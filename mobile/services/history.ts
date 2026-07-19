@@ -7,30 +7,36 @@ export interface HistoryEntry {
   at: string;
 }
 
-const KEY = 'watch_history_v1';
 const MAX = 12;
 
-export async function addToHistory(entry: Omit<HistoryEntry, 'at'>): Promise<void> {
-  const list = await getHistory();
+function key(userId?: string | null): string {
+  return userId ? `watch_history_v2_${userId}` : 'watch_history_v2_guest';
+}
+
+export async function addToHistory(
+  entry: Omit<HistoryEntry, 'at'>,
+  userId?: string | null,
+): Promise<void> {
+  const list = await getHistory(userId);
   const deduped = list.filter((h) => h.id !== entry.id);
   const updated: HistoryEntry[] = [
     { ...entry, at: new Date().toISOString() },
     ...deduped,
   ].slice(0, MAX);
   try {
-    await SecureStore.setItemAsync(KEY, JSON.stringify(updated));
+    await SecureStore.setItemAsync(key(userId), JSON.stringify(updated));
   } catch {}
 }
 
-export async function getHistory(): Promise<HistoryEntry[]> {
+export async function getHistory(userId?: string | null): Promise<HistoryEntry[]> {
   try {
-    const raw = await SecureStore.getItemAsync(KEY);
+    const raw = await SecureStore.getItemAsync(key(userId));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-export async function clearHistory(): Promise<void> {
-  await SecureStore.deleteItemAsync(KEY);
+export async function clearHistory(userId?: string | null): Promise<void> {
+  await SecureStore.deleteItemAsync(key(userId));
 }

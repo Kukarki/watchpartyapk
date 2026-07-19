@@ -1,3 +1,4 @@
+import React from 'react';
 import { router } from 'expo-router';
 // @ts-ignore — JSX module, types resolved at build time
 import LudoSoloScreen from '../../../games/ludo/LudoSoloScreen';

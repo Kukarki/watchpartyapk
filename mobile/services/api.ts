@@ -78,6 +78,7 @@ export function mapChatMessage(message: any): ChatMessage {
       ? new Date(message.createdAt).toISOString()
       : (message.created_at ?? new Date().toISOString()),
     reactions: message.reactions ?? {},
+    replyTo: message.replyTo ?? message.reply_to,
   };
 }
 

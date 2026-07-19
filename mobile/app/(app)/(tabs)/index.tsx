@@ -46,7 +46,7 @@ export default function HomeTab() {
     try {
       const { data } = await roomsApi.create(title || 'Watch party');
       setRoom(data.room);
-      router.push(`/(app)/room/${data.room.id}`);
+      router.push(`/(app)/room/${data.room.id}` as any);
     } catch { /* silent */ }
   }
 
@@ -59,7 +59,7 @@ export default function HomeTab() {
       hapticSuccess();
       setShowCreateModal(false);
       setRoomName('');
-      router.push(`/(app)/room/${data.room.id}`);
+      router.push(`/(app)/room/${data.room.id}` as any);
     } catch {
       hapticError();
       Toast.show({ type: 'error', text1: 'Could not create room' });
@@ -78,7 +78,7 @@ export default function HomeTab() {
       hapticSuccess();
       setShowJoinModal(false);
       setRoomCode('');
-      router.push(`/(app)/room/${data.room.id}`);
+      router.push(`/(app)/room/${data.room.id}` as any);
     } catch {
       hapticError();
       Toast.show({ type: 'error', text1: 'Room not found — check the code' });

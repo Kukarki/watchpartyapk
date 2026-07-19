@@ -40,7 +40,7 @@ export default function MusicTab() {
       setShowForm(false);
       setRoomName('');
       setStreamUrl('');
-      router.push(`/(app)/room/${data.room.id}`);
+      router.push(`/(app)/room/${data.room.id}` as any);
     } catch {
       hapticError();
       Toast.show({ type: 'error', text1: 'Could not create music room' });

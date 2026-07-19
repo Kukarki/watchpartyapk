@@ -35,6 +35,7 @@ import { showLocalNotification } from '@/services/notifications';
 import { addToHistory } from '@/services/history';
 import { hapticSuccess, hapticMedium, hapticLight } from '@/services/haptics';
 import { useWebRTC } from '@/hooks/useWebRTC';
+import { CameraCall } from '@/components/camera/CameraCall';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -62,6 +63,7 @@ export default function RoomScreen() {
   // ── Badge count (app icon) ─────────────────────────────────────────────────
   const appStateRef = useRef(AppState.currentState);
   const unreadRef = useRef(0);
+  const leavePayloadRef = useRef<{ endForAll?: boolean }>({});
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -78,6 +80,7 @@ export default function RoomScreen() {
   const [showVoice, setShowVoice] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [addVideoUrl, setAddVideoUrl] = useState('');
   const [addVideoTitle, setAddVideoTitle] = useState('');
@@ -107,17 +110,26 @@ export default function RoomScreen() {
   const prevPlayingRef = useRef(false);
   const videoState = useRoomStore((s) => s.videoState);
 
+  const countdownIvRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (videoState.isPlaying && !prevPlayingRef.current) {
+      if (countdownIvRef.current) clearInterval(countdownIvRef.current);
       setCountdown(3);
-      const iv = setInterval(() => {
+      countdownIvRef.current = setInterval(() => {
         setCountdown((c) => {
-          if (c === null || c <= 1) { clearInterval(iv); return null; }
+          if (c === null || c <= 1) {
+            clearInterval(countdownIvRef.current!);
+            countdownIvRef.current = null;
+            return null;
+          }
           return c - 1;
         });
       }, 1000);
     }
     prevPlayingRef.current = videoState.isPlaying;
+    return () => {
+      if (countdownIvRef.current) { clearInterval(countdownIvRef.current); countdownIvRef.current = null; }
+    };
   }, [videoState.isPlaying]);
 
   const isHost = currentRoom?.host_id === user?.id;
@@ -148,13 +160,13 @@ export default function RoomScreen() {
         }
         if (!mounted) return;
         socketService.emit(SOCKET_EVENTS.JOIN_ROOM, { roomId: id });
-        // Record to watch history
+        // Record to watch history (per-user)
         if (roomRes.data.room) {
           addToHistory({
             id: roomRes.data.room.id,
             name: roomRes.data.room.name,
             code: roomRes.data.room.code ?? roomRes.data.room.id,
-          });
+          }, user?.id);
         }
         setLoading(false);
       } catch {
@@ -260,7 +272,7 @@ export default function RoomScreen() {
 
     return () => {
       mounted = false;
-      socketService.emit(SOCKET_EVENTS.LEAVE_ROOM, { roomId: id });
+      socketService.emit(SOCKET_EVENTS.LEAVE_ROOM, { roomId: id, ...leavePayloadRef.current });
       socketService.off(SOCKET_EVENTS.ROOM_JOINED, onRoomJoined);
       socketService.off(SOCKET_EVENTS.ROOM_ERROR, onRoomError);
       socketService.off(SOCKET_EVENTS.MEMBER_JOINED, onMemberJoined);
@@ -301,7 +313,7 @@ export default function RoomScreen() {
         text: 'End Party',
         style: 'destructive',
         onPress: () => {
-          socketService.emit(SOCKET_EVENTS.LEAVE_ROOM, { roomId: id, endForAll: true });
+          leavePayloadRef.current = { endForAll: true };
           router.back();
         },
       },
@@ -332,7 +344,7 @@ export default function RoomScreen() {
     setAddingVideo(true);
     try {
       const safeTitle = sanitizeInput(addVideoTitle.trim() || url);
-      await queueApi.add(id, url, safeTitle);
+      await queueApi.add(id, { url, title: safeTitle });
       setAddVideoUrl('');
       setAddVideoTitle('');
       Toast.show({ type: 'success', text1: 'Added to queue' });
@@ -397,10 +409,10 @@ export default function RoomScreen() {
           contentContainerStyle={styles.presenceRow}
         >
           {members.map((m) => (
-            <View key={m.id} style={styles.presenceItem}>
+            <View key={m.user_id} style={styles.presenceItem}>
               <View style={styles.presenceAvatar}>
                 <Text style={styles.presenceInitial}>
-                  {(m.username ?? m.id).charAt(0).toUpperCase()}
+                  {(m.username ?? m.user_id).charAt(0).toUpperCase()}
                 </Text>
                 <View style={styles.onlineDot} />
               </View>
@@ -441,7 +453,7 @@ export default function RoomScreen() {
           <TextInput
             value={addVideoUrl}
             onChangeText={setAddVideoUrl}
-            placeholder="Paste YouTube or video URL to load…"
+            placeholder="YouTube, Vimeo, Twitch, Dailymotion, .m3u8, .mp4…"
             placeholderTextColor={COLORS.muted}
             style={styles.loadVideoInput}
             autoCapitalize="none"
@@ -536,6 +548,20 @@ export default function RoomScreen() {
             {isScreenSharing ? 'Sharing' : 'Screen'}
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => { hapticMedium(); setShowCamera(true); }}
+          style={[styles.ctrlBtn, showCamera && styles.ctrlActive]}
+          accessibilityLabel="Camera call"
+          accessibilityRole="button"
+        >
+          <Ionicons
+            name={showCamera ? 'videocam' : 'videocam-outline'}
+            size={22}
+            color={showCamera ? COLORS.primary : COLORS.textSecondary}
+          />
+          <Text style={[styles.ctrlLabel, showCamera && { color: COLORS.primary }]}>Camera</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Remote screen share overlay (WebRTC disabled) ── */}
@@ -563,6 +589,14 @@ export default function RoomScreen() {
       {/* ── Voice modal ── */}
       <VoiceModal roomId={id} visible={showVoice} onClose={() => setShowVoice(false)} />
 
+      {/* ── Camera call modal ── */}
+      <CameraCall
+        visible={showCamera}
+        roomId={id}
+        displayName={user?.username ?? user?.email ?? 'Guest'}
+        onClose={() => setShowCamera(false)}
+      />
+
       {/* ── Queue modal ── */}
       <Modal visible={showQueue} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowQueue(false)}>
         <View style={styles.queueModal}>
@@ -585,7 +619,7 @@ export default function RoomScreen() {
             <TextInput
               value={addVideoUrl}
               onChangeText={setAddVideoUrl}
-              placeholder="YouTube, HLS .m3u8 or direct video URL"
+              placeholder="YouTube, Vimeo, Twitch, Dailymotion, HLS .m3u8, direct .mp4…"
               placeholderTextColor={COLORS.muted}
               style={styles.addInput}
               autoCapitalize="none"

@@ -4,6 +4,12 @@ import express from 'express';
 import cors    from 'cors';
 import helmet  from 'helmet';
 import morgan  from 'morgan';
+import { createRequire } from 'module';
+
+// CJS interop for avatar-system and game-engine (CommonJS packages)
+const require = createRequire(import.meta.url);
+const { createAvatarModule, grantXp } = require('./src/avatar/index.js');
+const { attachGamesWithAvatarXp }     = require('./src/game-engine/index.js');
 
 import { config }                from './src/config/index.js';
 import { testSupabaseConnection } from './src/config/supabase.js';
@@ -54,14 +60,16 @@ async function bootstrap() {
     stream: { write: (msg) => logger.http(msg.trim()) },
   }));
 
-  // 3. Routes
+  // 3. Routes — avatar-system gets its own 16 MB JSON limit (for snapshot uploads)
+  app.use('/api/v1/avatar-system', createAvatarModule().router);
   app.use('/api/v1', apiLimiter, apiRoutes);
   app.use(notFound);
   app.use(errorHandler);
 
   // 4. HTTP + Socket.io
   const httpServer = http.createServer(app);
-  initSocketServer(httpServer);
+  const io = initSocketServer(httpServer);
+  attachGamesWithAvatarXp(io);
 
   httpServer.listen(config.port, () => {
     logger.info('🚀 WatchParty server running', { port: config.port, env: config.env });
