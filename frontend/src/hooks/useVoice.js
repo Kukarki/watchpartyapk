@@ -2,18 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useAuthStore } from '@/store/authStore.js';
-
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  ...(import.meta.env.VITE_TURN_URL
-    ? [{
-        urls:       import.meta.env.VITE_TURN_URL.split(','),
-        username:   import.meta.env.VITE_TURN_USERNAME,
-        credential: import.meta.env.VITE_TURN_CREDENTIAL,
-      }]
-    : []),
-];
+import { getIceServers } from '@/utils/iceServers.js';
 
 /**
  * useVoice
@@ -43,8 +32,9 @@ export function useVoice() {
   }, []);
 
   // ── Create peer connection to a remote user ───────────────
-  const createPeer = useCallback((remoteUserId, initiator) => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  const createPeer = useCallback(async (remoteUserId, initiator) => {
+    const iceServers = await getIceServers();
+    const pc = new RTCPeerConnection({ iceServers });
     peersRef.current[remoteUserId] = pc;
 
     // Add local tracks
@@ -109,7 +99,7 @@ export function useVoice() {
 
     const onOffer = async ({ fromId, sdp }) => {
       let pc = peersRef.current[fromId];
-      if (!pc) pc = createPeer(fromId, false);
+      if (!pc) pc = await createPeer(fromId, false);
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);

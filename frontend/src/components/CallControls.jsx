@@ -1,6 +1,8 @@
+import { useState } from 'react';
+
 /**
  * CallControls
- * Mute / camera / background-blur / minimize / hang-up buttons.
+ * Mute / camera / switch-camera / filters / background-blur / minimize / hang-up buttons.
  * `isMinimized` switches to a compact icon-only row with touch-safe sizing.
  */
 export default function CallControls({
@@ -11,10 +13,15 @@ export default function CallControls({
   onToggleMute,
   onToggleCamera,
   onToggleBlur,
+  onSwitchCamera,
+  filter,
+  filterNames,
+  onSetFilter,
   onLeave,
   onToggleMinimize,
   isMinimized = false,
 }) {
+  const [showFilters, setShowFilters] = useState(false);
   const base = `flex items-center justify-center rounded-full select-none
                 transition-all duration-150 active:scale-90 touch-manipulation`;
 
@@ -45,6 +52,51 @@ export default function CallControls({
       >
         {isCameraOff ? '📷' : '🎥'}
       </button>
+
+      {/* Switch camera (front/back) — hidden if handler not provided */}
+      {onSwitchCamera && (
+        <button
+          onClick={onSwitchCamera}
+          title="Switch camera"
+          className={`${base} ${sz} ${neutral}`}
+        >
+          🔄
+        </button>
+      )}
+
+      {/* Filters — hidden if handler not provided */}
+      {onSetFilter && filterNames && (
+        <div className="relative">
+          <button
+            onClick={() => setShowFilters((v) => !v)}
+            title="Video filters"
+            className={`${base} ${sz} ${filter && filter !== 'none' ? blurOn : neutral}`}
+          >
+            🎨
+          </button>
+          {showFilters && (
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2
+                             flex gap-1 p-1.5 rounded-xl bg-void/95 border border-border
+                             backdrop-blur-xl shadow-cinema whitespace-nowrap z-10">
+              {filterNames.map((name) => (
+                <button
+                  key={name}
+                  onClick={() => { onSetFilter(name); setShowFilters(false); }}
+                  title={name}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-mono capitalize
+                              transition-colors
+                              ${filter === name
+                                ? 'bg-info/20 text-info border border-info/40'
+                                : 'text-sub hover:text-bright hover:bg-raised border border-transparent'
+                              }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Background blur — hidden if handler not provided */}
       {onToggleBlur && (

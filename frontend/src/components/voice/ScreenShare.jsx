@@ -1,19 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { getIceServers } from '@/utils/iceServers.js';
 import toast from 'react-hot-toast';
-
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  ...(import.meta.env.VITE_TURN_URL
-    ? [{
-        urls:       import.meta.env.VITE_TURN_URL.split(','),
-        username:   import.meta.env.VITE_TURN_USERNAME,
-        credential: import.meta.env.VITE_TURN_CREDENTIAL,
-      }]
-    : []),
-];
 
 export default function ScreenShare({ roomId }) {
   const { socket, emit } = useSocketContext();
@@ -45,8 +34,9 @@ export default function ScreenShare({ roomId }) {
   // ── Peer factories ────────────────────────────────────────────────────────
 
   // Used by sharer when responding to a viewer's offer
-  function createShareePeer(viewerId) {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  async function createShareePeer(viewerId) {
+    const iceServers = await getIceServers();
+    const pc = new RTCPeerConnection({ iceServers });
     peersRef.current[viewerId] = pc;
 
     // Add screen tracks so we can send them to this viewer
@@ -61,6 +51,9 @@ export default function ScreenShare({ roomId }) {
     };
 
     pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed') {
+        toast.error('Could not connect to a viewer — they may be behind a restrictive network.');
+      }
       if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
         pc.close();
         delete peersRef.current[viewerId];
@@ -71,8 +64,9 @@ export default function ScreenShare({ roomId }) {
   }
 
   // Used by viewer when they want to receive the sharer's stream
-  function createViewerPeer(sharerId) {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  async function createViewerPeer(sharerId) {
+    const iceServers = await getIceServers();
+    const pc = new RTCPeerConnection({ iceServers });
     peersRef.current[sharerId] = pc;
 
     pc.onicecandidate = ({ candidate }) => {
@@ -84,6 +78,9 @@ export default function ScreenShare({ roomId }) {
     };
 
     pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed') {
+        toast.error('Could not connect to the screen share — the sharer may be behind a restrictive network.');
+      }
       if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
         pc.close();
         delete peersRef.current[sharerId];
@@ -102,12 +99,12 @@ export default function ScreenShare({ roomId }) {
     if (!s) return;
 
     // Someone started sharing → viewer sends them an offer
-    const onStarted = ({ userId: uid, displayName }) => {
+    const onStarted = async ({ userId: uid, displayName }) => {
       if (uid === user?.userId) return;
       setSharedBy({ userId: uid, displayName });
       toast(`${displayName} is sharing their screen`, { icon: '🖥️' });
 
-      const pc = createViewerPeer(uid);
+      const pc = await createViewerPeer(uid);
       // Declare we want to RECEIVE video — this creates the required m= section in SDP
       pc.addTransceiver('video', { direction: 'recvonly' });
 
@@ -128,7 +125,7 @@ export default function ScreenShare({ roomId }) {
 
     // Sharer receives a viewer's offer → answers with their screen stream
     const onOffer = async ({ fromId, sdp }) => {
-      const pc = createShareePeer(fromId);
+      const pc = await createShareePeer(fromId);
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);

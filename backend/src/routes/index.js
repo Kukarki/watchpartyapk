@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createRequire } from 'module';
 import authRoutes     from './auth.routes.js';
 import roomRoutes     from './room.routes.js';
 import proxyRoutes    from './proxy.routes.js';
@@ -7,8 +8,16 @@ import playlistRoutes from './playlist.routes.js';
 import historyRoutes  from './history.routes.js';
 import spotifyRoutes  from './spotify.routes.js';
 import youtubeRoutes  from './youtube.routes.js';
+import webrtcRoutes   from './webrtc.routes.js';
+
+const _require = createRequire(import.meta.url);
+const { createAvatarModule } = _require('../avatar/index.js');
 
 const router = Router();
+
+// Avatar system — catalog, shop, inventory, progression, gifts
+const { router: avatarRouter } = createAvatarModule();
+router.use('/avatar-system', avatarRouter);
 
 // Auth — guest login, email register/login, OAuth callback, profile
 router.use('/auth', authRoutes);
@@ -33,6 +42,9 @@ router.use('/youtube', youtubeRoutes);
 
 // HLS proxy — strips CORS restrictions from kisskh CDN streams
 router.use('/proxy', proxyRoutes);
+
+// WebRTC — time-limited TURN/STUN credentials for calls and screen share
+router.use('/webrtc', webrtcRoutes);
 
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', ts: Date.now() });

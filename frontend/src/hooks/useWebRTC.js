@@ -1,18 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
 import { useAuthStore } from '@/store/authStore.js';
+import { getIceServers } from '@/utils/iceServers.js';
 
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  ...(import.meta.env.VITE_TURN_URL
-    ? [{
-        urls:       import.meta.env.VITE_TURN_URL.split(','),
-        username:   import.meta.env.VITE_TURN_USERNAME,
-        credential: import.meta.env.VITE_TURN_CREDENTIAL,
-      }]
-    : []),
-];
 const MAX_PEERS = 3; // supports up to 4 participants total (you + 3)
 
 export function useWebRTC() {
@@ -84,10 +74,11 @@ export function useWebRTC() {
     Object.keys(peersRef.current).forEach(destroyPeer);
   }, [destroyPeer]);
 
-  const createPeer = useCallback((remoteUserId, isInitiator) => {
+  const createPeer = useCallback(async (remoteUserId, isInitiator) => {
     if (peersRef.current[remoteUserId]) return peersRef.current[remoteUserId];
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const iceServers = await getIceServers();
+    const pc = new RTCPeerConnection({ iceServers });
     peersRef.current[remoteUserId] = pc;
 
     localStreamRef.current?.getTracks().forEach((track) => {
@@ -104,6 +95,9 @@ export function useWebRTC() {
 
     // Auto-cleanup on peer disconnect
     pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed') {
+        setCallError('Connection to a participant failed — they may be behind a restrictive network.');
+      }
       if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
         destroyPeer(remoteUserId);
       }
@@ -181,7 +175,7 @@ export function useWebRTC() {
 
     const onOffer = async ({ fromId, sdp }) => {
       let pc = peersRef.current[fromId];
-      if (!pc) pc = createPeer(fromId, false);
+      if (!pc) pc = await createPeer(fromId, false);
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -237,6 +231,34 @@ export function useWebRTC() {
     });
   }, []);
 
+  // Flips between front (user) and rear (environment) camera — mobile only in
+  // practice; desktop webcams typically ignore facingMode and just keep rolling.
+  const [facingMode, setFacingModeState] = useState('user');
+
+  const switchCamera = useCallback(async () => {
+    if (!localStreamRef.current) return;
+    const nextFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: nextFacingMode },
+      });
+      const newTrack = newStream.getVideoTracks()[0];
+      if (!newTrack) return;
+
+      const oldTrack = localStreamRef.current.getVideoTracks()[0];
+      if (oldTrack) {
+        oldTrack.stop();
+        localStreamRef.current.removeTrack(oldTrack);
+      }
+      localStreamRef.current.addTrack(newTrack);
+      updateVideoTrack(newTrack);
+      setFacingModeState(nextFacingMode);
+    } catch {
+      setCallError('Could not switch camera.');
+    }
+  }, [facingMode, updateVideoTrack]);
+
   return {
     localStream,
     remoteStreams,   // { [userId]: MediaStream }
@@ -244,10 +266,12 @@ export function useWebRTC() {
     isCameraOff,
     isInCall,
     callError,
+    facingMode,
     startCall,
     leaveCall,
     toggleMute,
     toggleCamera,
+    switchCamera,
     updateVideoTrack,
   };
 }

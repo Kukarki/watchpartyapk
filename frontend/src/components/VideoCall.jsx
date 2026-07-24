@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useWebRTC }          from '@/hooks/useWebRTC.js';
 import { useCallRinger }      from '@/hooks/useCallRinger.js';
 import { useBackgroundBlur }  from '@/hooks/useBackgroundBlur.js';
+import { useVideoFilter }     from '@/hooks/useVideoFilter.js';
 import { useRoomStore }       from '@/store/roomStore.js';
 import { useAuthStore }       from '@/store/authStore.js';
 import { useSocketContext }   from '@/contexts/SocketContext.jsx';
@@ -45,6 +46,7 @@ export default function VideoCall() {
     leaveCall,
     toggleMute,
     toggleCamera,
+    switchCamera,
     updateVideoTrack,
   } = useWebRTC();
 
@@ -55,6 +57,11 @@ export default function VideoCall() {
     toggle:     toggleBlur,
     processedStream,
   } = useBackgroundBlur();
+
+  const {
+    filter, filterNames, processedStream: filteredStream,
+    start: startFilter, stop: stopFilter, setFilter,
+  } = useVideoFilter();
 
   // Ring whenever someone else starts a call while we're not in it
   useCallRinger(isInCall);
@@ -106,10 +113,24 @@ export default function VideoCall() {
 
   const handleLeave = useCallback(() => {
     if (isBlurOn) toggleBlur(localStream, updateVideoTrack);
+    stopFilter();
     leaveCall();
     setIsMinimized(false);
     setIncomingName(null);
-  }, [leaveCall, isBlurOn, toggleBlur, localStream, updateVideoTrack]);
+  }, [leaveCall, isBlurOn, toggleBlur, localStream, updateVideoTrack, stopFilter]);
+
+  const handleFilterChange = useCallback((name) => {
+    if (name === 'none') {
+      stopFilter();
+      const rawTrack = localStream?.getVideoTracks()[0];
+      if (rawTrack) updateVideoTrack(rawTrack);
+      return;
+    }
+    const stream = filteredStream || startFilter(localStream);
+    setFilter(name);
+    const track = stream?.getVideoTracks()[0];
+    if (track) updateVideoTrack(track);
+  }, [filteredStream, startFilter, setFilter, localStream, updateVideoTrack, stopFilter]);
 
   useEffect(() => {
     return () => { if (isInCall) leaveCall(); };
@@ -176,8 +197,10 @@ export default function VideoCall() {
     return { userId: uid, stream, displayName: m.displayName ?? 'Participant', avatar: m.avatar };
   });
 
-  // The stream shown in the local tile: blurred canvas stream or raw camera
-  const localDisplayStream = isBlurOn && processedStream ? processedStream : localStream;
+  // The stream shown in the local tile: blurred/filtered canvas stream or raw camera
+  const localDisplayStream = isBlurOn && processedStream
+    ? processedStream
+    : (filter !== 'none' && filteredStream ? filteredStream : localStream);
 
   const gridCols = totalCount === 1 ? 'grid-cols-1' : 'grid-cols-2';
 
@@ -327,6 +350,10 @@ export default function VideoCall() {
             onToggleMute={toggleMute}
             onToggleCamera={toggleCamera}
             onToggleBlur={null}
+            onSwitchCamera={isMobile ? switchCamera : null}
+            filter={filter}
+            filterNames={filterNames}
+            onSetFilter={handleFilterChange}
             onLeave={handleLeave}
             onToggleMinimize={() => setIsMinimized((v) => !v)}
             isMinimized={isMinimized}
