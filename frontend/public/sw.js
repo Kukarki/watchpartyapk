@@ -1,5 +1,5 @@
 /* WatchParty service worker — minimal, enables PWA install + basic app-shell cache. */
-const CACHE = 'watchparty-shell-v1';
+const CACHE = 'watchparty-shell-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -30,11 +30,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request).catch(() => caches.match('/index.html'))
     );
-    return;
   }
-
-  // Cache-first for static assets.
-  event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
-  );
+  // Every other GET request (JS/CSS/images/etc.) is left untouched -- no
+  // event.respondWith() means the browser's normal network fetch runs as if
+  // there were no service worker at all. The caching benefit still comes
+  // from nginx's Cache-Control headers (immutable for hashed assets), so
+  // there's no need for bespoke cache-matching logic here that can throw an
+  // uncaught rejection (and a hard network-error response) on any transient
+  // network hiccup -- which is exactly what was happening before.
 });
