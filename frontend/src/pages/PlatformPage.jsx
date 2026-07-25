@@ -28,7 +28,23 @@ export default function PlatformPage() {
   const [loading, setLoading]         = useState(false);
   const inputRef                      = useRef(null);
 
-  const extensionPresent = !!window.__WATCHPARTY_EXTENSION__;
+  // The extension's content script sets this flag at document_start, but on
+  // an SPA route change (no full page reload) that only covers tabs that were
+  // already open when the extension was installed/enabled. A PING/PONG
+  // round-trip catches the extension being present even when the flag wasn't
+  // set in time (or the tab predates the extension being enabled).
+  const [extensionPresent, setExtensionPresent] = useState(!!window.__WATCHPARTY_EXTENSION__);
+
+  useEffect(() => {
+    if (extensionPresent) return;
+    const onMessage = (event) => {
+      if (event.source !== window) return;
+      if (event.data?.type === 'WATCHPARTY_EXTENSION_PRESENT') setExtensionPresent(true);
+    };
+    window.addEventListener('message', onMessage);
+    window.postMessage({ type: 'WATCHPARTY_PING' }, '*');
+    return () => window.removeEventListener('message', onMessage);
+  }, [extensionPresent]);
 
   useEffect(() => {
     if (!platform) navigate('/', { replace: true });
@@ -93,7 +109,10 @@ export default function PlatformPage() {
         setRoomId(room.id);
         setStep('launched');
       } else {
-        // No extension installed — show room code + install instructions
+        // No extension installed — still send them to the real platform to
+        // log in and watch, just without extension-driven sync. Show the
+        // room code + install instructions alongside.
+        window.open(platform.url, '_blank', 'noopener');
         setRoomId(room.id);
         setStep('no-ext');
       }
@@ -297,8 +316,15 @@ export default function PlatformPage() {
               </div>
 
               <button
-                onClick={handleCopy}
+                onClick={() => window.open(platform.url, '_blank', 'noopener')}
                 className="btn-primary w-full justify-center py-2.5"
+              >
+                Open {platform.name} →
+              </button>
+
+              <button
+                onClick={handleCopy}
+                className="btn-ghost w-full justify-center py-2 text-sm border border-border"
               >
                 {copied ? '✓ Copied!' : '🔗 Copy Invite Link'}
               </button>
