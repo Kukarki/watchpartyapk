@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useFriendsStore } from '@/store/friendsStore.js';
 import { useExtensionPresent } from '@/hooks/useExtensionPresent.js';
@@ -89,6 +89,17 @@ export default function AppShell({ children }) {
       {/* pb-16 keeps content clear of the fixed mobile bottom tab bar */}
       <div className="flex-1 pb-16 sm:pb-0">
         {children}
+
+        <footer className="border-t border-border px-6 py-6 mt-6">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <span className="text-dim">🎬 WatchParty © {new Date().getFullYear()}</span>
+            <div className="flex items-center gap-5">
+              <Link to="/how-to" className="text-sub hover:text-bright transition-colors">Support</Link>
+              <Link to="/privacy" className="text-sub hover:text-bright transition-colors">Privacy</Link>
+              <a href="mailto:kushalkarki1415@gmail.com" className="text-sub hover:text-bright transition-colors">Contact</a>
+            </div>
+          </div>
+        </footer>
       </div>
 
       {/* Mobile bottom tab bar */}
