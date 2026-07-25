@@ -13,11 +13,14 @@ import {
 import * as THREE from 'three';
 import { buildAvatar } from '@/lib/avatar/buildAvatar.js';
 
+// Distances pulled back from the Expo app's originals -- those were tuned
+// for a portrait mobile screen; a wide web card needs more headroom/footroom
+// so the whole body fits without cropping the head or feet.
 const FRAMINGS = {
-  full: { target: [0, 0.92, 0], dist: 3.3, fov: 32 },
-  bust: { target: [0, 1.45, 0], dist: 1.9, fov: 30 },
-  head: { target: [0, 1.72, 0], dist: 1.05, fov: 28 },
-  face: { target: [0, 1.7, 0], dist: 0.9, fov: 26 },
+  full: { target: [0, 0.85, 0], dist: 4.6, fov: 32 },
+  bust: { target: [0, 1.45, 0], dist: 2.3, fov: 30 },
+  head: { target: [0, 1.72, 0], dist: 1.3, fov: 28 },
+  face: { target: [0, 1.7, 0], dist: 1.1, fov: 26 },
 };
 
 function bgColors(recipe, catalogIndex) {
