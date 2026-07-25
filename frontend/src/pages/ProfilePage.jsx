@@ -4,10 +4,14 @@ import { userApi } from '@/api/user.api.js';
 import AppShell from '@/components/layout/AppShell.jsx';
 import AvatarErrorBoundary from '@/components/avatar/AvatarErrorBoundary.jsx';
 import { defaultRecipe, EXPRESSIONS } from '@/lib/avatar/avatarCore.js';
+import { buildStarterCatalog } from '@/lib/avatar/starterCatalog.js';
+import toast from 'react-hot-toast';
 
-// Lazy-loaded: three.js is a heavy dependency, keep it out of the main
-// bundle until someone actually opens the profile page.
-const AvatarStage = lazy(() => import('@/components/avatar/AvatarStage.jsx'));
+// Lazy-loaded: three.js (and, for the selfie flow, MediaPipe's WASM model)
+// are heavy dependencies, keep them out of the main bundle until someone
+// actually opens the profile page / clicks "Create from selfie".
+const AvatarStage    = lazy(() => import('@/components/avatar/AvatarStage.jsx'));
+const SelfieCapture  = lazy(() => import('@/components/avatar/SelfieCapture.jsx'));
 
 const BASE = 'https://api.dicebear.com/8.x/avataaars/svg';
 
@@ -48,9 +52,11 @@ export default function ProfilePage() {
 
   // ── 3D avatar preview (new, experimental — not yet wired to save) ────────
   const avatarStageRef = useRef(null);
-  const [recipe3d] = useState(defaultRecipe);
+  const [recipe3d, setRecipe3d] = useState(defaultRecipe);
+  const [catalog3d] = useState(buildStarterCatalog);
   const [framing3d, setFraming3d] = useState('full');
   const [expression3d, setExpression3d] = useState('soft_smile');
+  const [showSelfie, setShowSelfie] = useState(false);
 
   const handleFraming = (name) => {
     setFraming3d(name);
@@ -59,6 +65,16 @@ export default function ProfilePage() {
   const handleExpression = (id) => {
     setExpression3d(id);
     avatarStageRef.current?.setExpression(id);
+  };
+  const handleSelfieResult = ({ skin, faceShape, hairColor, hairStyle }) => {
+    setRecipe3d((r) => ({
+      ...r,
+      body: { ...r.body, skin },
+      face: { ...r.face, shape: faceShape },
+      hair: { ...r.hair, id: hairStyle, color: hairColor },
+    }));
+    setShowSelfie(false);
+    toast.success('Applied! Fine-tune anything below.');
   };
 
   // Build the DiceBear URL from current traits
@@ -165,9 +181,18 @@ export default function ProfilePage() {
             Isolated in its own error boundary + lazy chunk so if WebGL is
             unsupported or three.js fails to load, nothing above breaks. */}
         <div className="card p-6 mt-6 space-y-4">
-          <div>
-            <h2 className="font-display font-semibold text-bright text-base">3D Character Preview</h2>
-            <p className="text-dim text-xs mt-0.5">Early preview — not connected to your saved profile yet.</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display font-semibold text-bright text-base">3D Character Preview</h2>
+              <p className="text-dim text-xs mt-0.5">Early preview — not connected to your saved profile yet.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSelfie(true)}
+              className="btn-ghost text-xs px-3 py-1.5 border border-border shrink-0 whitespace-nowrap"
+            >
+              📸 Create from selfie
+            </button>
           </div>
 
           <div className="h-80 rounded-xl overflow-hidden bg-void border border-border">
@@ -180,7 +205,7 @@ export default function ProfilePage() {
                 <AvatarStage
                   ref={avatarStageRef}
                   recipe={recipe3d}
-                  catalogIndex={new Map()}
+                  catalogIndex={catalog3d}
                   framing={framing3d}
                   autoRotate
                 />
@@ -225,6 +250,17 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {showSelfie && (
+        <AvatarErrorBoundary>
+          <Suspense fallback={null}>
+            <SelfieCapture
+              onResult={handleSelfieResult}
+              onClose={() => setShowSelfie(false)}
+            />
+          </Suspense>
+        </AvatarErrorBoundary>
+      )}
     </div>
     </AppShell>
   );
