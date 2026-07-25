@@ -26,6 +26,7 @@ import GamesPage           from '@/pages/GamesPage.jsx';
 import GameRoomPage        from '@/pages/GameRoomPage.jsx';
 import AvatarClosetPage    from '@/pages/AvatarClosetPage.jsx';
 import InventoryPage       from '@/pages/InventoryPage.jsx';
+import VroidHubCallbackPage from '@/pages/VroidHubCallbackPage.jsx';
 import InstallPrompt       from '@/components/pwa/InstallPrompt.jsx';
 
 export default function App() {
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="/games" element={<GamesPage />} />
             <Route path="/avatar-closet" element={<AvatarClosetPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/auth/vroid-hub/callback" element={<VroidHubCallbackPage />} />
             <Route
               path="/room/:roomId"
               element={

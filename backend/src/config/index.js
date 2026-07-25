@@ -55,4 +55,10 @@ export const config = {
     apiKey:       process.env.YOUTUBE_API_KEY || '', // for public search — added once the user provides it
     redirectUri:  process.env.YOUTUBE_REDIRECT_URI || `${process.env.PUBLIC_URL || 'https://sandipwatch7.dedyn.io'}/auth/youtube/callback`,
   },
+
+  vroidHub: {
+    clientId:     process.env.VROID_HUB_CLIENT_ID || '',
+    clientSecret: process.env.VROID_HUB_CLIENT_SECRET || '',
+    redirectUri:  process.env.VROID_HUB_REDIRECT_URI || `${process.env.PUBLIC_URL || 'https://sandipwatch7.dedyn.io'}/auth/vroid-hub/callback`,
+  },
 };

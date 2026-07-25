@@ -32,6 +32,7 @@ export default defineConfig({
           react: ['react', 'react-dom', 'react-router-dom'],
           socket: ['socket.io-client'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-scroll-area'],
+          three: ['three', '@pixiv/three-vrm'],
         },
       },
     },
