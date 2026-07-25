@@ -1,18 +1,44 @@
 // VRoid Hub OAuth integration — same authorization-code-flow shape as
-// spotify.service.js / youtube.service.js in this same directory.
+// spotify.service.js / youtube.service.js in this same directory, plus two
+// things VRoid Hub specifically requires that Spotify/YouTube don't: PKCE
+// (code_verifier/code_challenge) and a proprietary `X-Api-Version` header.
 //
-// NOTE ON ENDPOINT PATHS: developer.vroid.com's docs returned 403 to this
-// codebase's fetch tooling (bot-protected) while this file was written, so
-// the paths below are the best-documented ones found via search, not
-// confirmed against the live API reference. Verify AUTH_BASE/API_BASE and
-// each path against https://developer.vroid.com/en/api/ once you have
-// developer credentials, before relying on this in production.
+// CONFIRMED (via a working reference provider config): the OAuth authorize
+// path (/oauth/authorize), token path (/oauth/token), the profile endpoint
+// (/api/account, and its response shape), the PKCE requirement, and the
+// X-Api-Version:11 header.
+//
+// STILL UNVERIFIED (best-documented guess, developer.vroid.com's own docs
+// blocked this codebase's fetch tooling): the character-model list and
+// download-license endpoint paths/shapes below. Confirm against
+// developer.vroid.com/en/api/ once reachable, or by testing the live flow.
+import crypto from 'crypto';
 import { getSupabaseAdmin } from '../config/supabase.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
 const AUTH_BASE = 'https://hub.vroid.com';
 const API_BASE  = 'https://hub.vroid.com/api/v1';
+const API_VERSION_HEADER = { 'X-Api-Version': '11' };
+
+// Short-lived, in-memory PKCE verifier store, keyed by `state` (which this
+// flow always sets to the WatchParty userId — same value connectAccount()
+// receives back after the redirect, so no extra plumbing is needed to
+// correlate the two). A single-process in-memory Map is fine here: entries
+// live for at most a few minutes (the time it takes a user to approve the
+// OAuth prompt) and are deleted the moment they're consumed.
+const pkceStore = new Map(); // userId -> { verifier, ts }
+const PKCE_TTL_MS = 10 * 60 * 1000;
+
+function base64url(buf) {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function createPkcePair() {
+  const verifier = base64url(crypto.randomBytes(32));
+  const challenge = base64url(crypto.createHash('sha256').update(verifier).digest());
+  return { verifier, challenge };
+}
 
 function httpError(status, message) {
   return Object.assign(new Error(message), { status });
@@ -24,25 +50,38 @@ class VroidHubService {
   }
 
   getAuthUrl(state) {
+    const { verifier, challenge } = createPkcePair();
+    pkceStore.set(state, { verifier, ts: Date.now() });
+
     const params = new URLSearchParams({
-      client_id:     config.vroidHub.clientId,
-      response_type: 'code',
-      redirect_uri:  config.vroidHub.redirectUri,
+      client_id:             config.vroidHub.clientId,
+      response_type:         'code',
+      redirect_uri:          config.vroidHub.redirectUri,
+      scope:                 'default',
       state,
+      code_challenge:        challenge,
+      code_challenge_method: 'S256',
     });
-    return `${AUTH_BASE}/oauth/authorization?${params.toString()}`;
+    return `${AUTH_BASE}/oauth/authorize?${params.toString()}`;
   }
 
-  async exchangeCode(code) {
+  async exchangeCode(code, state) {
+    const entry = pkceStore.get(state);
+    pkceStore.delete(state);
+    if (!entry || Date.now() - entry.ts > PKCE_TTL_MS) {
+      throw httpError(400, 'Login session expired — try connecting again');
+    }
+
     const res = await fetch(`${AUTH_BASE}/oauth/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...API_VERSION_HEADER },
       body: new URLSearchParams({
         grant_type:    'authorization_code',
         code,
         client_id:     config.vroidHub.clientId,
         client_secret: config.vroidHub.clientSecret,
         redirect_uri:  config.vroidHub.redirectUri,
+        code_verifier: entry.verifier,
       }),
     });
     if (!res.ok) {
@@ -56,7 +95,7 @@ class VroidHubService {
   async refreshAccessToken(refreshToken) {
     const res = await fetch(`${AUTH_BASE}/oauth/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...API_VERSION_HEADER },
       body: new URLSearchParams({
         grant_type:    'refresh_token',
         refresh_token: refreshToken,
@@ -73,7 +112,7 @@ class VroidHubService {
   }
 
   async connectAccount(userId, code) {
-    const tokens = await this.exchangeCode(code);
+    const tokens = await this.exchangeCode(code, userId);
     const profile = await this._fetchProfile(tokens.access_token);
 
     const { error } = await this.sb.from('vroid_hub_connections').upsert({
@@ -100,14 +139,14 @@ class VroidHubService {
     return data;
   }
 
-  // [{ id, name, thumbnailUrl }]
+  // [{ id, name, thumbnailUrl }] — UNVERIFIED path/shape, see file header.
   async listModels(userId) {
     const connection = await this.getConnection(userId);
     if (!connection) return { connected: false, models: [] };
 
     const accessToken = await this._validAccessToken(connection);
     const res = await fetch(`${API_BASE}/character_models?is_private_visibility=true`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...API_VERSION_HEADER },
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -124,7 +163,8 @@ class VroidHubService {
   }
 
   // Fresh presigned download URL for the selected model's .vrm file — these
-  // expire, so this always re-resolves via the API rather than caching the URL.
+  // expire, so this always re-resolves via the API rather than caching the
+  // URL. UNVERIFIED path/shape, see file header.
   async getModelDownloadUrl(userId, modelId) {
     const connection = await this.getConnection(userId);
     if (!connection) throw httpError(400, 'VRoid Hub is not connected');
@@ -132,7 +172,7 @@ class VroidHubService {
     const accessToken = await this._validAccessToken(connection);
     const res = await fetch(`${API_BASE}/character_models/${modelId}/download_license`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...API_VERSION_HEADER },
       body: JSON.stringify({ sdk_controller_name: 'watchparty' }),
     });
     if (!res.ok) {
@@ -180,14 +220,21 @@ class VroidHubService {
     return refreshed.access_token;
   }
 
+  // CONFIRMED path + response shape via a working reference provider config:
+  // GET https://hub.vroid.com/api/account ->
+  //   { data: { user_detail: { user: { id, name, icon: { sq170: { url } } } } } }
   async _fetchProfile(accessToken) {
-    const res = await fetch(`${API_BASE}/users/current`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(`${AUTH_BASE}/api/account`, {
+      headers: { Authorization: `Bearer ${accessToken}`, ...API_VERSION_HEADER },
+    });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       logger.error('Failed to fetch VRoid Hub profile', { status: res.status, body });
       throw httpError(502, 'Failed to fetch VRoid Hub profile');
     }
-    return res.json();
+    const data = await res.json();
+    const user = data?.data?.user_detail?.user || {};
+    return { id: user.id, name: user.name, iconUrl: user.icon?.sq170?.url || null };
   }
 }
 
