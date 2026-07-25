@@ -16,15 +16,15 @@ export default function GamesPage() {
   const [roomName, setRoomName] = useState('');
   const [creating, setCreating] = useState(null); // game id currently being created
 
-  const handleStartGame = async (game) => {
+  const handleStartGame = async (game, solo) => {
     setCreating(game.id);
     try {
       const { room } = await roomApi.createRoom({
-        name: roomName.trim() || `${game.name} Night`,
+        name: roomName.trim() || `${game.name}${solo ? ' Solo' : ' Night'}`,
         roomType: 'game',
         gameType: game.id,
       });
-      navigate(`/game-room/${room.id}`);
+      navigate(`/game-room/${room.id}${solo ? '?mode=solo' : ''}`);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to create game room');
     } finally {
@@ -58,21 +58,29 @@ export default function GamesPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
           {GAMES.map((game) => (
-            <button
-              key={game.id}
-              onClick={() => handleStartGame(game)}
-              disabled={creating === game.id}
-              className="card p-6 text-left hover:border-amber/40 transition-all hover:-translate-y-0.5
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <div key={game.id} className="card p-6 text-left">
               <div className="text-4xl mb-3">{game.icon}</div>
               <h3 className="font-display font-semibold text-bright text-base mb-1">{game.name}</h3>
-              <p className="text-dim text-xs leading-relaxed">{game.description}</p>
-              <span className="text-amber text-xs mt-3 inline-flex items-center gap-1">
-                {creating === game.id ? 'Starting...' : 'Play'}
-                {creating !== game.id && <span>→</span>}
-              </span>
-            </button>
+              <p className="text-dim text-xs leading-relaxed mb-4">{game.description}</p>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => handleStartGame(game, false)}
+                  disabled={creating === game.id}
+                  className="btn-ghost text-xs px-3 py-1.5 border border-border justify-center
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  👥 With friends
+                </button>
+                <button
+                  onClick={() => handleStartGame(game, true)}
+                  disabled={creating === game.id}
+                  className="btn-primary text-xs px-3 py-1.5 justify-center
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {creating === game.id ? 'Starting...' : '🤖 Solo vs Bot'}
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       </main>

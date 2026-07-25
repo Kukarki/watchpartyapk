@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
 import ChatPanel     from '@/components/chat/ChatPanel.jsx';
@@ -22,6 +22,8 @@ export default function GameRoomPage() {
   const { isChatOpen, toggleChat, room } = useRoomStore();
   const { connected }        = useSocketContext();
   const navigate             = useNavigate();
+  const [searchParams]       = useSearchParams();
+  const isSolo                = searchParams.get('mode') === 'solo';
   const [sidebarTab, setSidebarTab] = useState('chat');
 
   // A "watch"/"music" room slipped in via /game-room/:id — send it to the right page.
@@ -94,18 +96,18 @@ export default function GameRoomPage() {
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <div className="flex-1 relative bg-void">
-            <Board />
+            <Board isSolo={isSolo} />
           </div>
         </div>
 
-        {isChatOpen && (
+        {!isSolo && isChatOpen && (
           <aside className="hidden md:flex w-80 xl:w-96 flex-col border-l border-border
                              bg-surface shrink-0 animate-slide-right">
             {sidebarInner}
           </aside>
         )}
 
-        {isChatOpen && (
+        {!isSolo && isChatOpen && (
           <div className="md:hidden fixed inset-0 z-40 flex flex-col bg-surface
                           animate-slide-up" style={{ height: '100dvh' }}>
             <div className="flex items-center justify-between px-4 py-2.5
@@ -124,7 +126,8 @@ export default function GameRoomPage() {
         )}
       </div>
 
-      {!isChatOpen && (
+      {/* Solo games have no one to chat/voice with — no point offering the panel */}
+      {!isSolo && !isChatOpen && (
         <button
           onClick={toggleChat}
           className="md:hidden fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full

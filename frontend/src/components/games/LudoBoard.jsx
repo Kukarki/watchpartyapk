@@ -8,12 +8,14 @@ import {
 
 const ROLL_ANIM_MS = 650;
 
-export default function LudoBoard() {
+export default function LudoBoard({ isSolo = false }) {
   const { gameState, room, members } = useRoomStore();
   const { startGame, sendGameAction } = useRoomActions();
   const { user } = useAuth();
 
-  const [botCount, setBotCount] = useState(0);
+  // Solo games default to a full table of bots — the whole point of "solo"
+  // is skipping the wait for a lobby to fill up.
+  const [botCount, setBotCount] = useState(isSolo ? 3 : 0);
   const [isRolling, setIsRolling] = useState(false);
   const [rollingFace, setRollingFace] = useState(1);
   const rollIntervalRef = useRef(null);
@@ -51,15 +53,19 @@ export default function LudoBoard() {
     return (
       <div className="w-full h-full flex items-center justify-center px-6">
         <div className="text-center space-y-4 animate-fade-in">
-          <div className="text-6xl">🎲</div>
-          <p className="text-bright text-sm font-medium">Ludo hasn't started yet</p>
-          <p className="text-dim text-xs">
-            {members.length} player{members.length !== 1 ? 's' : ''} in the room — needs 2 to 4
+          <div className="text-6xl">{isSolo ? '🤖' : '🎲'}</div>
+          <p className="text-bright text-sm font-medium">
+            {isSolo ? 'Set up your solo match' : "Ludo hasn't started yet"}
           </p>
+          {!isSolo && (
+            <p className="text-dim text-xs">
+              {members.length} player{members.length !== 1 ? 's' : ''} in the room — needs 2 to 4
+            </p>
+          )}
 
           {isHost && maxBots > 0 && (
             <div className="flex items-center justify-center gap-3">
-              <span className="text-dim text-xs">🤖 Add bots</span>
+              <span className="text-dim text-xs">🤖 {isSolo ? 'Bots' : 'Add bots'}</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setBotCount((c) => Math.max(0, c - 1))}
@@ -88,7 +94,9 @@ export default function LudoBoard() {
               disabled={!canStart}
               className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {totalSeats < 2 ? (members.length === 1 ? 'Add a bot to play solo, or wait for others' : 'Waiting for more players...') : 'Start Game →'}
+              {totalSeats < 2
+                ? (isSolo ? 'Add at least 1 bot to start' : (members.length === 1 ? 'Add a bot to play solo, or wait for others' : 'Waiting for more players...'))
+                : (isSolo ? 'Start Solo Game →' : 'Start Game →')}
             </button>
           ) : (
             <p className="text-dim text-xs">Waiting for the host to start the game...</p>
@@ -98,10 +106,12 @@ export default function LudoBoard() {
     );
   }
 
+  const ownerByColor = Object.fromEntries(gameState.players.map((p) => [p.color, p]));
+
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center p-4 gap-4 overflow-y-auto">
+    <div className="relative w-full h-full flex flex-col items-center p-4 gap-3 overflow-y-auto">
       {/* Turn / player indicator */}
-      <div className="flex items-center gap-2 flex-wrap justify-center">
+      <div className="flex items-center gap-2 flex-wrap justify-center shrink-0">
         {gameState.players.map((p, i) => (
           <div
             key={p.userId}
@@ -115,14 +125,53 @@ export default function LudoBoard() {
         ))}
       </div>
 
+      {/* Dice + status — kept above the board so it's never scrolled out of view */}
+      <div className="flex items-center gap-4 shrink-0">
+        <div className={`w-14 h-14 rounded-xl bg-raised border border-border
+                         flex items-center justify-center text-2xl font-display font-bold text-bright
+                         ${isRolling ? 'animate-bounce' : ''}`}>
+          {isRolling ? rollingFace : (gameState.diceValue ?? '—')}
+        </div>
+        {isMyTurn && !isRolling && gameState.diceValue === null && (
+          <button onClick={handleRoll} className="btn-primary">🎲 Roll Dice</button>
+        )}
+        {isMyTurn && isRolling && (
+          <p className="text-sub text-sm">Rolling…</p>
+        )}
+        {isMyTurn && !isRolling && gameState.diceValue !== null && legalTokenIds.length > 0 && (
+          <p className="text-sub text-sm">Tap a glowing token to move it</p>
+        )}
+        {!isMyTurn && !gameState.winner && (
+          <p className="text-dim text-sm flex items-center gap-1">
+            {currentPlayer?.isBot && '🤖'} Waiting for {currentPlayer?.displayName}...
+          </p>
+        )}
+      </div>
+
       {/* Board */}
       <svg viewBox="0 0 15 15" className="w-full max-w-[480px] aspect-square shrink-0">
         <rect x={0} y={0} width={15} height={15} fill="#080a0f" />
 
-        {Object.entries(BASE_TOP_LEFT).map(([color, [r, c]]) => (
-          <rect key={color} x={c} y={r} width={6} height={6}
-                fill={`${COLOR_HEX[color]}18`} stroke={COLOR_HEX[color]} strokeWidth={0.06} rx={0.3} />
-        ))}
+        {Object.entries(BASE_TOP_LEFT).map(([color, [r, c]]) => {
+          const owner = ownerByColor[color];
+          return (
+            <g key={color}>
+              <rect x={c} y={r} width={6} height={6}
+                    fill={`${COLOR_HEX[color]}18`} stroke={COLOR_HEX[color]} strokeWidth={0.06} rx={0.3} />
+              {/* 4 empty token sockets so the base always reads as "4 slots" even before pieces render */}
+              {[[1, 1], [1, 4], [4, 1], [4, 4]].map(([dr, dc], i) => (
+                <circle key={i} cx={c + dc + 0.5} cy={r + dr + 0.5} r={0.34}
+                        fill="none" stroke={`${COLOR_HEX[color]}55`} strokeWidth={0.03} strokeDasharray="0.08 0.06" />
+              ))}
+              {owner && (
+                <text x={c + 3} y={r + 0.55} textAnchor="middle" fontSize={0.42}
+                      fill={COLOR_HEX[color]} fontWeight="600">
+                  {owner.isBot ? '🤖 ' : ''}{owner.displayName}
+                </text>
+              )}
+            </g>
+          );
+        })}
 
         {TRACK.map(([r, c], i) => (
           <rect key={`t${i}`} x={c} y={r} width={1} height={1} fill="#141820" stroke="#1e2433" strokeWidth={0.02} />
@@ -146,15 +195,16 @@ export default function LudoBoard() {
           const tokenIndex = parseInt(tokenId.split('-')[1], 10);
           const [r, c] = tokenCell(token.color, token.pos, tokenIndex);
           const clickable = isMyTurn && !isRolling && legalTokenIds.includes(tokenId);
+          const atHome = token.pos === 'home';
           return (
             <circle
               key={tokenId}
               cx={c + 0.5}
               cy={r + 0.5}
-              r={clickable ? 0.4 : 0.32}
+              r={clickable ? 0.42 : atHome ? 0.36 : 0.32}
               fill={COLOR_HEX[token.color]}
-              stroke={clickable ? '#eef2fc' : '#00000055'}
-              strokeWidth={clickable ? 0.07 : 0.025}
+              stroke={clickable ? '#eef2fc' : '#0a0c12'}
+              strokeWidth={clickable ? 0.08 : 0.05}
               style={{ cursor: clickable ? 'pointer' : 'default', transition: 'cx 0.25s ease, cy 0.25s ease' }}
               className={clickable ? 'animate-pulse-dot' : ''}
               onClick={() => clickable && handleMove(tokenId)}
@@ -162,29 +212,6 @@ export default function LudoBoard() {
           );
         })}
       </svg>
-
-      {/* Dice + status */}
-      <div className="flex items-center gap-4 shrink-0">
-        <div className={`w-14 h-14 rounded-xl bg-raised border border-border
-                         flex items-center justify-center text-2xl font-display font-bold text-bright
-                         ${isRolling ? 'animate-bounce' : ''}`}>
-          {isRolling ? rollingFace : (gameState.diceValue ?? '—')}
-        </div>
-        {isMyTurn && !isRolling && gameState.diceValue === null && (
-          <button onClick={handleRoll} className="btn-primary">🎲 Roll Dice</button>
-        )}
-        {isMyTurn && isRolling && (
-          <p className="text-sub text-sm">Rolling…</p>
-        )}
-        {isMyTurn && !isRolling && gameState.diceValue !== null && legalTokenIds.length > 0 && (
-          <p className="text-sub text-sm">Tap a glowing token to move it</p>
-        )}
-        {!isMyTurn && !gameState.winner && (
-          <p className="text-dim text-sm flex items-center gap-1">
-            {currentPlayer?.isBot && '🤖'} Waiting for {currentPlayer?.displayName}...
-          </p>
-        )}
-      </div>
 
       {/* Win banner */}
       {gameState.winner && (
