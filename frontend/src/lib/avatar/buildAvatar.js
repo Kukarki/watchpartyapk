@@ -187,23 +187,48 @@ export function buildAvatar(recipe, catalogIndex = new Map()) {
         const pupil = sphere(0.015 * eyeScale, smooth(ex === 'cool' ? '#20242E' : eyeHex), 8, 8);
         pupil.position.z = 0.02 * eyeScale;
         eg.add(pupil);
+        // glossy cartoon-eye highlight
+        const shine = sphere(0.006 * eyeScale, new THREE.MeshBasicMaterial({ color: '#FFFFFF' }), 6, 6);
+        shine.position.set(-0.008 * eyeScale, 0.01 * eyeScale, 0.03 * eyeScale);
+        eg.add(shine);
       } else {
         const lid = box(0.05, 0.012, 0.012, smooth('#20242E'));
         lid.rotation.z = side * 0.25;
         eg.add(lid);
       }
-      // brows
-      const b = box(0.055 * brow.w, 0.013, 0.012, smooth(browColor));
+      // brows — a capsule tapers softer at the ends than a hard-edged box,
+      // reads more like an actual brow arc than a flat bar
+      const b = capsule(0.006, 0.043 * brow.w, smooth(browColor));
+      b.rotation.z = Math.PI / 2 - side * brow.angle + (ex === 'sad' ? side * 0.2 : 0);
       b.position.set(0, 0.055 + (ex === 'shock' ? 0.015 : 0), 0.01);
-      b.rotation.z = -side * brow.angle + (ex === 'sad' ? side * 0.2 : 0);
       eg.add(b);
       faceGroup.add(eg);
     }
 
+    // Nose: bridge + a rounded tip so it reads as a button nose rather than
+    // a bare cone.
     const n = cone(0.015 * nose.scale, 0.032 * nose.scale, skinMat, 8);
     n.rotation.x = Math.PI / 2;
     n.position.set(0, -0.012, headR * 0.98);
     faceGroup.add(n);
+    const noseTip = sphere(0.013 * nose.scale, skinMat, 8, 6);
+    noseTip.position.set(0, -0.012, headR * 0.98 + 0.017 * nose.scale);
+    faceGroup.add(noseTip);
+
+    // Chin + cheeks: the head is otherwise a plain sphere, so these are the
+    // only things giving it any lower-face structure instead of just a
+    // uniformly round blob.
+    const chin = sphere(headR * 0.32, skinMat, 12, 10);
+    chin.scale.set(1, 0.65, 0.75);
+    chin.position.set(0, -headR * 0.82, headR * 0.58);
+    faceGroup.add(chin);
+
+    for (const side of [-1, 1]) {
+      const cheek = sphere(headR * 0.3, skinMat, 10, 8);
+      cheek.scale.set(1, 0.8, 0.65);
+      cheek.position.set(side * headR * 0.62, -headR * 0.08, headR * 0.62);
+      faceGroup.add(cheek);
+    }
 
     // mouth per expression
     const mz = headR * 0.94;
