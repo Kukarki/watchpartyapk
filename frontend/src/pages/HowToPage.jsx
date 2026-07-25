@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PLATFORMS } from './HomePage.jsx';
 import { EXTENSION_REPO_URL, HOW_IT_WORKS_STEPS as QUICK_STEPS } from '@/constants.js';
@@ -9,6 +10,55 @@ const INSTALL_STEPS = [
   'Click “Load unpacked” and select the extension/ folder.',
   'Pin the WatchParty icon — you’re ready to sync.',
 ];
+
+const FAQ_ITEMS = [
+  {
+    q: 'Which browsers are supported?',
+    a: 'Chrome, Edge and Brave (any Chromium-based browser) support the full extension experience. Safari and mobile browsers can’t run extensions, but YouTube rooms work everywhere with no extension needed, and you can always join a room to chat and talk while someone else drives playback.',
+  },
+  {
+    q: 'Do all participants need their own subscription?',
+    a: 'Yes — WatchParty only keeps everyone’s playback in sync, it doesn’t stream video for you. Everyone in the room needs their own account on whichever platform you’re watching (Netflix, Prime Video, etc.), except YouTube which just needs a URL.',
+  },
+  {
+    q: 'How many people can join a room?',
+    a: 'Watch parties don’t have a hard participant limit — invite as many friends as you like. (Games like Ludo are capped at 2–4 players, since that’s a rule of the game itself, not a WatchParty limit.)',
+  },
+  {
+    q: 'Is my chat and call data private?',
+    a: 'Voice and video calls connect directly between participants’ browsers — our server never sees or stores that content. Chat messages are stored so people who join later can see room history. See our full Privacy Policy for details.',
+  },
+  {
+    q: 'The extension says "not detected" — what do I do?',
+    a: 'Make sure it’s loaded and enabled in chrome://extensions, then refresh the WatchParty tab (extensions only activate on a fresh page load). See the install steps above for the full walkthrough.',
+  },
+];
+
+function FAQAccordion() {
+  const [openIndex, setOpenIndex] = useState(null);
+  return (
+    <div className="space-y-2">
+      {FAQ_ITEMS.map(({ q, a }, i) => {
+        const isOpen = openIndex === i;
+        return (
+          <div key={q} className="card overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setOpenIndex(isOpen ? null : i)}
+              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+            >
+              <span className="font-display font-semibold text-bright text-sm">{q}</span>
+              <span className={`shrink-0 text-dim transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {isOpen && (
+              <p className="px-5 pb-4 text-sub text-sm leading-relaxed animate-fade-in">{a}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function PlatformGuide({ platformId, steps }) {
   const p = PLATFORMS.find((x) => x.id === platformId);
@@ -241,6 +291,12 @@ export default function HowToPage() {
               Extension download &amp; source →
             </a>
           </div>
+        </section>
+
+        {/* FAQ */}
+        <section>
+          <h2 className="font-display font-bold text-xl text-bright mb-4">Frequently asked questions</h2>
+          <FAQAccordion />
         </section>
 
         {/* CTA */}
