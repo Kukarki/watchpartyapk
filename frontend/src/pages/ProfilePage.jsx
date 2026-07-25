@@ -1,9 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore.js';
 import { userApi } from '@/api/user.api.js';
 import AppShell from '@/components/layout/AppShell.jsx';
 import Avatar from '@/components/ui/Avatar.jsx';
+import toast from 'react-hot-toast';
+
+// Only pulls in camera access when actually opened.
+const SelfieCapture = lazy(() => import('@/components/avatar/SelfieCapture.jsx'));
 
 const BASE = 'https://api.dicebear.com/8.x/avataaars/svg';
 
@@ -41,6 +45,13 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [showSelfie, setShowSelfie] = useState(false);
+
+  const handleSelfieResult = ({ skinColor, hairColor }) => {
+    setTraits((t) => ({ ...t, skinColor, hairColor }));
+    setShowSelfie(false);
+    toast.success('Applied! Fine-tune anything below.');
+  };
 
   // Build the DiceBear URL from current traits
   const avatarUrl = useMemo(() => {
@@ -87,6 +98,13 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center gap-3">
             <img src={avatarUrl} alt="avatar preview"
                  className="w-32 h-32 rounded-2xl border-2 border-amber/40 bg-raised" />
+            <button
+              type="button"
+              onClick={() => setShowSelfie(true)}
+              className="btn-ghost text-xs px-3 py-1.5 border border-border"
+            >
+              📸 Create from selfie
+            </button>
             <input className="input-base max-w-xs text-center" value={displayName}
                    onChange={(e) => { setDisplayName(e.target.value); setTrait('seed', e.target.value || 'User'); }}
                    maxLength={30} placeholder="Your name" disabled={loading} />
@@ -142,8 +160,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Ready Player Me avatar closet — the 3D avatar creator + inventory
-            now live on their own page (RPMAvatarCreator/AvatarClosetPage). */}
+        {/* Inventory — equipped cosmetic items live on their own page */}
         <Link
           to="/avatar-closet"
           className="card p-6 mt-6 flex items-center gap-4 hover:border-amber/30 transition-colors duration-300"
@@ -151,11 +168,22 @@ export default function ProfilePage() {
           <Avatar src={user?.avatar} name={user?.displayName} size="lg" />
           <div className="flex-1 min-w-0">
             <h2 className="font-display font-semibold text-bright text-base">Avatar Closet</h2>
-            <p className="text-dim text-xs mt-0.5">Create a 3D avatar and equip items from your inventory.</p>
+            <p className="text-dim text-xs mt-0.5">See your avatar and equip items from your inventory.</p>
           </div>
           <span className="text-amber text-sm shrink-0">Open →</span>
         </Link>
       </div>
+
+      {showSelfie && (
+        <Suspense fallback={null}>
+          <SelfieCapture
+            skinPalette={OPTS.skinColor}
+            hairPalette={OPTS.hairColor}
+            onResult={handleSelfieResult}
+            onClose={() => setShowSelfie(false)}
+          />
+        </Suspense>
+      )}
     </div>
     </AppShell>
   );
