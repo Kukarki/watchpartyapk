@@ -4,7 +4,7 @@ import { userApi } from '@/api/user.api.js';
 import AppShell from '@/components/layout/AppShell.jsx';
 import AvatarErrorBoundary from '@/components/avatar/AvatarErrorBoundary.jsx';
 import { defaultRecipe, EXPRESSIONS } from '@/lib/avatar/avatarCore.js';
-import { buildStarterCatalog } from '@/lib/avatar/starterCatalog.js';
+import { buildStarterCatalog, CLOTHING_OPTIONS } from '@/lib/avatar/starterCatalog.js';
 import toast from 'react-hot-toast';
 
 // Lazy-loaded: three.js (and, for the selfie flow, MediaPipe's WASM model)
@@ -65,6 +65,16 @@ export default function ProfilePage() {
   const handleExpression = (id) => {
     setExpression3d(id);
     avatarStageRef.current?.setExpression(id);
+  };
+  const handleOutfit = (slot, id) => {
+    setRecipe3d((r) => {
+      if (slot === 'full') {
+        // toggle: clicking the equipped full outfit again clears it
+        return { ...r, outfit: { ...r.outfit, full: r.outfit.full === id ? null : id } };
+      }
+      // picking a separate top/bottom/shoes piece overrides any full outfit
+      return { ...r, outfit: { ...r.outfit, [slot]: id, full: null } };
+    });
   };
   const handleSelfieResult = ({ skin, faceShape, hairColor, hairStyle }) => {
     setRecipe3d((r) => ({
@@ -246,6 +256,46 @@ export default function ProfilePage() {
               >
                 {ex.emoji}
               </button>
+            ))}
+          </div>
+
+          {/* Outfit pickers */}
+          <div className="space-y-3 pt-2 border-t border-border">
+            {[
+              { slot: 'top',    label: 'Top' },
+              { slot: 'bottom', label: 'Bottom' },
+              { slot: 'shoes',  label: 'Shoes' },
+              { slot: 'full',   label: 'Full outfit' },
+            ].map(({ slot, label }) => (
+              <div key={slot}>
+                <label className="block text-sub text-xs font-mono uppercase tracking-widest mb-2">
+                  {label}
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {CLOTHING_OPTIONS[slot].map((item) => {
+                    const selected = slot === 'full'
+                      ? recipe3d.outfit.full === item.id
+                      : recipe3d.outfit[slot] === item.id && !recipe3d.outfit.full;
+                    const color = item.colorways?.[0]?.primary || '#5A6273';
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleOutfit(slot, item.id)}
+                        title={item.name}
+                        className={`flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-full border transition-all
+                          ${selected ? 'border-amber bg-amber/10' : 'border-border hover:border-sub/40'}`}
+                      >
+                        <span className="w-5 h-5 rounded-full border border-border/50 shrink-0"
+                              style={{ backgroundColor: color }} />
+                        <span className={`text-xs whitespace-nowrap ${selected ? 'text-amber' : 'text-dim'}`}>
+                          {item.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
         </div>

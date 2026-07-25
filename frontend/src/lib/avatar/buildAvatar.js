@@ -138,7 +138,21 @@ export function buildAvatar(recipe, catalogIndex = new Map()) {
     arm.add(mesh);
     const hand = new THREE.Group();
     hand.position.y = -armLen - 0.015;
-    hand.add(sphere(armR * 1.05, skinMat));
+    hand.add(sphere(armR * 0.95, skinMat, 10, 8));
+    // simple blocky fingers + thumb — low-poly, not articulated
+    const fingerR = armR * 0.16;
+    const fingerLen = armR * 0.75;
+    for (let i = 0; i < 4; i++) {
+      const t = (i - 1.5) / 1.5; // -1..1 spread across the palm
+      const finger = capsule(fingerR, fingerLen, skinMat);
+      finger.position.set(t * armR * 0.55, -armR * 1.15, armR * 0.15);
+      finger.rotation.z = t * 0.25;
+      hand.add(finger);
+    }
+    const thumb = capsule(fingerR * 1.1, fingerLen * 0.75, skinMat);
+    thumb.position.set(side * armR * 0.85, -armR * 0.35, armR * 0.35);
+    thumb.rotation.z = side * 1.15;
+    hand.add(thumb);
     arm.add(hand);
     arm.rotation.z = side * 0.14; // slight outward rest pose
     root.add(arm);
@@ -159,6 +173,13 @@ export function buildAvatar(recipe, catalogIndex = new Map()) {
   root.add(neck);
 
   headGroup.add(sphere(headR, skinMat, 20, 16));
+
+  for (const side of [-1, 1]) {
+    const ear = sphere(headR * 0.22, skinMat, 10, 8);
+    ear.scale.set(0.55, 1, 0.8);
+    ear.position.set(side * headR * 0.97, -0.01, 0.05);
+    headGroup.add(ear);
+  }
 
   const faceGroup = new THREE.Group(); // rebuilt on expression change
   headGroup.add(faceGroup);
