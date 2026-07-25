@@ -73,6 +73,62 @@ export default function LudoBoard({ isSolo = false }) {
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
   }, [gameState != null]);
 
+  // Step-by-step token movement: the server sends the token's final position
+  // directly, but a real Ludo piece hops one square at a time. Diff each
+  // game:state update against the previous one and, for any token that
+  // walked forward (home->N release and captured->home sends are instant
+  // snaps, not walks), animate through every intermediate square instead of
+  // letting it jump straight there.
+  const prevTokensRef = useRef(null);
+  const [animOverrides, setAnimOverrides] = useState({});
+  const animTimersRef = useRef({});
+
+  useEffect(() => () => {
+    Object.values(animTimersRef.current).forEach(clearInterval);
+  }, []);
+
+  useEffect(() => {
+    const newTokens = gameState?.tokens;
+    if (!newTokens) return;
+    const prevTokens = prevTokensRef.current;
+    prevTokensRef.current = newTokens;
+    if (!prevTokens) return; // first render — nothing to diff against yet
+
+    for (const [tokenId, newTok] of Object.entries(newTokens)) {
+      const prevTok = prevTokens[tokenId];
+      if (!prevTok || prevTok.pos === newTok.pos) continue;
+
+      const oldPos = prevTok.pos;
+      const newPos = newTok.pos;
+      const finalNumeric = newPos === 'finished' ? 57 : newPos;
+      // Only a forward walk (numeric -> numeric/finished, strictly increasing)
+      // animates step by step; leaving home or getting captured just snaps.
+      if (typeof oldPos !== 'number' || typeof finalNumeric !== 'number' || finalNumeric <= oldPos) continue;
+
+      clearInterval(animTimersRef.current[tokenId]);
+      let step = oldPos;
+      setAnimOverrides((prev) => ({ ...prev, [tokenId]: step }));
+      animTimersRef.current[tokenId] = setInterval(() => {
+        step += 1;
+        if (step >= finalNumeric) {
+          clearInterval(animTimersRef.current[tokenId]);
+          delete animTimersRef.current[tokenId];
+          setAnimOverrides((prev) => ({ ...prev, [tokenId]: newPos })); // land on the real final value
+          setTimeout(() => {
+            setAnimOverrides((prev) => {
+              const next = { ...prev };
+              delete next[tokenId];
+              return next;
+            });
+          }, 220);
+        } else {
+          setAnimOverrides((prev) => ({ ...prev, [tokenId]: step }));
+        }
+      }, 180);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.tokens]);
+
   const isHost = room?.hostId === user?.userId;
   const currentPlayer = gameState?.players?.[gameState.currentPlayerIndex];
   const isMyTurn = !!currentPlayer && currentPlayer.userId === user?.userId;
@@ -227,7 +283,8 @@ export default function LudoBoard({ isSolo = false }) {
 
           {Object.entries(gameState.tokens).map(([tokenId, token]) => {
             const tokenIndex = parseInt(tokenId.split('-')[1], 10);
-            const [r, c] = tokenCell(token.color, token.pos, tokenIndex);
+            const displayPos = animOverrides[tokenId] !== undefined ? animOverrides[tokenId] : token.pos;
+            const [r, c] = tokenCell(token.color, displayPos, tokenIndex);
             const clickable = isMyTurn && !isRolling && legalTokenIds.includes(tokenId);
             const atHome = token.pos === 'home';
             return (
