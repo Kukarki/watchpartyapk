@@ -1,16 +1,54 @@
 import { roomService } from '../services/room.service.js';
 import { gameService } from '../services/game.service.js';
+import { GAME_MODULES } from '../games/index.js';
+import { makeBotPlayer } from '../games/ludoBot.js';
 import { logger } from '../utils/logger.js';
 
 function inRoom(socket, roomId) {
   return roomId && socket.rooms.has(roomId);
 }
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// After any state change, if it's now a bot's turn, play it out automatically
+// (roll, then move) with human-feeling pauses, recursing for extra turns or
+// back-to-back bot players. Never throws into the caller — a bot hiccup
+// shouldn't take down a real player's move.
+async function maybeRunBotTurn(io, roomId, gameType, state, depth = 0) {
+  if (depth > 20) return; // safety valve against any unforeseen infinite loop
+  if (!state || state.winner) return;
+
+  const module = GAME_MODULES[gameType];
+  const player = state.players?.[state.currentPlayerIndex];
+  if (!player?.isBot || typeof module?.pickBotMove !== 'function') return;
+
+  try {
+    await delay(650 + Math.random() * 450);
+    let result = await gameService.applyAction(roomId, gameType, { type: 'roll_dice' }, player.userId);
+    io.to(roomId).emit('game:state', result);
+
+    let { state: next, events } = result;
+    if (next.diceValue !== null && next.legalTokenIds?.length > 0) {
+      await delay(550 + Math.random() * 400);
+      const tokenId = module.pickBotMove(next, player.userId);
+      if (tokenId) {
+        result = await gameService.applyAction(roomId, gameType, { type: 'move_token', tokenId }, player.userId);
+        io.to(roomId).emit('game:state', result);
+        next = result.state;
+      }
+    }
+
+    await maybeRunBotTurn(io, roomId, gameType, next, depth + 1);
+  } catch (err) {
+    logger.error('bot turn error', { err: err.message, roomId });
+  }
+}
+
 export function registerGameHandlers(io, socket) {
   const { userId } = socket.user;
 
-  // ─── game:start — host-only, deals current room members into the game ───
-  socket.on('game:start', async ({ roomId } = {}) => {
+  // ─── game:start — host-only, deals current room members (+ optional bots) into the game ───
+  socket.on('game:start', async ({ roomId, botCount = 0 } = {}) => {
     if (!inRoom(socket, roomId)) return;
     try {
       const room = await roomService.getRoomWithState(roomId);
@@ -18,17 +56,55 @@ export function registerGameHandlers(io, socket) {
       if (room.hostId !== userId) return socket.emit('game:error', { message: 'Only the host can start the game' });
       if (!room.gameType) return socket.emit('game:error', { message: 'This room has no game configured' });
 
-      const members = await roomService.getRoomMembers(roomId);
-      if (members.length < 2) return socket.emit('game:error', { message: 'Need at least 2 players to start' });
-      if (members.length > 4) return socket.emit('game:error', { message: 'Ludo supports at most 4 players' });
+      const module = GAME_MODULES[room.gameType];
+      if (!module) return socket.emit('game:error', { message: `Unknown game type: ${room.gameType}` });
+      const maxPlayers = module.meta?.maxPlayers ?? 4;
+      const minPlayers = module.meta?.minPlayers ?? 2;
 
-      const players = members.map((m) => ({ userId: m.userId, displayName: m.displayName }));
+      const members = await roomService.getRoomMembers(roomId);
+      if (members.length > maxPlayers) return socket.emit('game:error', { message: `${room.gameType} supports at most ${maxPlayers} players` });
+
+      const requestedBots = Math.max(0, Math.min(Number(botCount) || 0, maxPlayers - members.length));
+      if (members.length + requestedBots < minPlayers) {
+        return socket.emit('game:error', { message: `Need at least ${minPlayers} players (including bots) to start` });
+      }
+
+      const players = members.map((m) => ({ userId: m.userId, displayName: m.displayName, isBot: false }));
+      for (let i = 1; i <= requestedBots; i++) players.push(makeBotPlayer(roomId, i));
+
       const state = await gameService.createGame(roomId, room.gameType, players);
 
       io.to(roomId).emit('game:state', { state, events: [{ type: 'game_started' }] });
+      maybeRunBotTurn(io, roomId, room.gameType, state);
     } catch (err) {
       logger.error('game:start error', { err: err.message, roomId });
       socket.emit('game:error', { message: err.message || 'Could not start the game' });
+    }
+  });
+
+  // ─── game:leave — explicit leave (e.g. user navigates away without disconnecting) ───
+  socket.on('game:leave', async ({ roomId } = {}) => {
+    if (!inRoom(socket, roomId)) return;
+    try {
+      const gs = await gameService.getState(roomId);
+      if (!gs) return;
+      await gameService.removePlayer(roomId, userId);
+      io.to(roomId).emit('game:player_left', { userId, roomId });
+    } catch (err) {
+      logger.error('game:leave error', { err: err.message, roomId });
+    }
+  });
+
+  // ─── disconnect — notify the room so clients don't freeze waiting for a gone player ───
+  socket.on('disconnect', () => {
+    // socket.rooms is still populated during the 'disconnect' event.
+    for (const roomId of socket.rooms) {
+      if (roomId === socket.id) continue; // every socket is in its own room — skip
+      gameService.getState(roomId).then(async (gs) => {
+        if (!gs) return;
+        await gameService.removePlayer(roomId, userId);
+        io.to(roomId).emit('game:player_left', { userId, roomId });
+      }).catch(() => {});
     }
   });
 
@@ -41,6 +117,7 @@ export function registerGameHandlers(io, socket) {
 
       const { state, events } = await gameService.applyAction(roomId, room.gameType, action, userId);
       io.to(roomId).emit('game:state', { state, events });
+      maybeRunBotTurn(io, roomId, room.gameType, state);
     } catch (err) {
       // Illegal-move / not-your-turn errors are expected user feedback, not server faults.
       socket.emit('game:error', { message: err.message || 'Invalid move' });

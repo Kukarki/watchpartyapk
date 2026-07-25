@@ -210,8 +210,8 @@ export function RoomProvider({ children }) {
     emit('voice:mute', { roomId, isMuted: next });
   }, [emit, roomId]);
 
-  const startGame = useCallback(() => {
-    emit('game:start', { roomId });
+  const startGame = useCallback((opts = {}) => {
+    emit('game:start', { roomId, ...opts });
   }, [emit, roomId]);
 
   const sendGameAction = useCallback((action) => {
