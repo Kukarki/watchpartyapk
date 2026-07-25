@@ -199,6 +199,12 @@ export default function LandingPage() {
           </button>
           <p className="text-dim text-xs mt-3">Free to join · No credit card required</p>
         </div>
+
+        <footer className="mt-16 pt-6 border-t border-border w-full text-center">
+          <Link to="/privacy" className="text-dim text-xs hover:text-sub hover:underline underline-offset-2">
+            Privacy Policy
+          </Link>
+        </footer>
       </main>
     </div>
   );
