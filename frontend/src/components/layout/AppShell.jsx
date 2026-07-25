@@ -1,18 +1,23 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useFriendsStore } from '@/store/friendsStore.js';
+import { useExtensionPresent } from '@/hooks/useExtensionPresent.js';
+import { EXTENSION_REPO_URL } from '@/constants.js';
+import GradientButton from '@/components/ui/GradientButton.jsx';
 
 const NAV_ITEMS = [
   { to: '/home',    label: 'Home',    icon: '🏠' },
   { to: '/music',   label: 'Music',   icon: '🎵' },
   { to: '/games',   label: 'Games',   icon: '🎲' },
   { to: '/friends', label: 'Friends', icon: '👥' },
+  { to: '/how-to',  label: 'Support', icon: '🛟' },
 ];
 
 export default function AppShell({ children }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { incomingRequests } = useFriendsStore();
+  const extensionPresent = useExtensionPresent();
   const badgeCount = incomingRequests.length;
 
   const avatarUrl = user?.avatar
@@ -52,6 +57,15 @@ export default function AppShell({ children }) {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            {extensionPresent ? (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-online text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-online shrink-0" /> Extension active
+              </span>
+            ) : (
+              <a href={EXTENSION_REPO_URL} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex">
+                <GradientButton as="span" className="text-xs px-3 py-1.5">Install Extension</GradientButton>
+              </a>
+            )}
             <NavLink
               to="/profile"
               title="Edit your profile"
