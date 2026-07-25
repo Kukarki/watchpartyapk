@@ -5,6 +5,8 @@ import { roomApi } from '@/api/room.api.js';
 import { useFriendsStore } from '@/store/friendsStore.js';
 import AppShell from '@/components/layout/AppShell.jsx';
 import Avatar from '@/components/ui/Avatar.jsx';
+import { useExtensionPresent } from '@/hooks/useExtensionPresent.js';
+import { EXTENSION_REPO_URL } from '@/constants.js';
 import toast from 'react-hot-toast';
 
 export const PLATFORMS = [
@@ -106,6 +108,7 @@ export default function HomePage() {
   const [roomName, setRoomName] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const extensionPresent = useExtensionPresent();
 
   const handlePlatformClick = (platformId) => navigate(`/platform/${platformId}`);
   const handleImgError = (id) => setImgErrors((prev) => ({ ...prev, [id]: true }));
@@ -137,6 +140,32 @@ export default function HomePage() {
   return (
     <AppShell>
       <main className="max-w-6xl mx-auto px-6 py-10">
+
+        {/* Extension status — always visible at the top so it's never buried */}
+        {extensionPresent ? (
+          <div className="flex items-center gap-2 mb-6 px-3 py-2 rounded-lg
+                           bg-online/10 border border-online/20 animate-fade-in">
+            <span className="w-1.5 h-1.5 rounded-full bg-online shrink-0" />
+            <p className="text-online text-xs">WatchParty extension active — Netflix, Prime and more will sync automatically</p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-6 px-3 py-2 rounded-lg
+                           bg-amber/5 border border-amber/20 animate-fade-in">
+            <span className="text-amber text-sm shrink-0">⚡</span>
+            <p className="text-dim text-xs flex-1 min-w-[180px]">
+              Install the extension to sync Netflix, Prime Video and more.
+            </p>
+            <a
+              href={EXTENSION_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber text-xs font-medium hover:underline underline-offset-2 shrink-0"
+            >
+              Get the Extension →
+            </a>
+          </div>
+        )}
+
         <div className="mb-10 animate-slide-up">
           <h1 className="font-display font-bold text-3xl sm:text-4xl text-bright mb-2">
             Good to see you, <span className="text-gradient">{user?.displayName}</span>

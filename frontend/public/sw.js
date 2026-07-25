@@ -1,5 +1,5 @@
 /* WatchParty service worker — minimal, enables PWA install + basic app-shell cache. */
-const CACHE = 'watchparty-shell-v2';
+const CACHE = 'watchparty-shell-v3';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useAuthStore } from '@/store/authStore.js';
 import { roomApi } from '@/api/room.api.js';
 import { userApi } from '@/api/user.api.js';
+import { useExtensionPresent } from '@/hooks/useExtensionPresent.js';
 import { PLATFORMS } from './HomePage.jsx';
 
 const API_BASE  = import.meta.env.VITE_API_URL || '/api/v1';
@@ -29,23 +30,7 @@ export default function PlatformPage() {
   const [loading, setLoading]         = useState(false);
   const inputRef                      = useRef(null);
 
-  // The extension's content script sets this flag at document_start, but on
-  // an SPA route change (no full page reload) that only covers tabs that were
-  // already open when the extension was installed/enabled. A PING/PONG
-  // round-trip catches the extension being present even when the flag wasn't
-  // set in time (or the tab predates the extension being enabled).
-  const [extensionPresent, setExtensionPresent] = useState(!!window.__WATCHPARTY_EXTENSION__);
-
-  useEffect(() => {
-    if (extensionPresent) return;
-    const onMessage = (event) => {
-      if (event.source !== window) return;
-      if (event.data?.type === 'WATCHPARTY_EXTENSION_PRESENT') setExtensionPresent(true);
-    };
-    window.addEventListener('message', onMessage);
-    window.postMessage({ type: 'WATCHPARTY_PING' }, '*');
-    return () => window.removeEventListener('message', onMessage);
-  }, [extensionPresent]);
+  const extensionPresent = useExtensionPresent();
 
   useEffect(() => {
     if (!platform) navigate('/', { replace: true });
