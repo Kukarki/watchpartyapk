@@ -23,13 +23,13 @@ async function maybeRunBotTurn(io, roomId, gameType, state, depth = 0) {
   if (!player?.isBot || typeof module?.pickBotMove !== 'function') return;
 
   try {
-    await delay(650 + Math.random() * 450);
+    await delay(1200 + Math.random() * 700);
     let result = await gameService.applyAction(roomId, gameType, { type: 'roll_dice' }, player.userId);
     io.to(roomId).emit('game:state', result);
 
     let { state: next, events } = result;
     if (next.diceValue !== null && next.legalTokenIds?.length > 0) {
-      await delay(550 + Math.random() * 400);
+      await delay(1000 + Math.random() * 600);
       const tokenId = module.pickBotMove(next, player.userId);
       if (tokenId) {
         result = await gameService.applyAction(roomId, gameType, { type: 'move_token', tokenId }, player.userId);
