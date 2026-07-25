@@ -8,6 +8,31 @@ import {
 
 const ROLL_ANIM_MS = 650;
 
+// Classic 6-face pip layouts on a 3x3 grid.
+const PIP_LAYOUT = {
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8],
+};
+
+function DiceFace({ value, rolling }) {
+  const active = PIP_LAYOUT[value] || [];
+  return (
+    <div className={`w-14 h-14 rounded-xl bg-[#f4f6fa] shadow-inner grid grid-cols-3 grid-rows-3
+                     gap-1 p-2 shrink-0 ${rolling ? 'animate-[spin_0.5s_linear_infinite]' : ''}`}>
+      {Array.from({ length: 9 }).map((_, i) => (
+        <span
+          key={i}
+          className={`rounded-full ${active.includes(i) ? 'bg-[#141826]' : 'bg-transparent'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function LudoBoard({ isSolo = false }) {
   const { gameState, room, members } = useRoomStore();
   const { startGame, sendGameAction } = useRoomActions();
@@ -107,31 +132,13 @@ export default function LudoBoard({ isSolo = false }) {
   }
 
   const ownerByColor = Object.fromEntries(gameState.players.map((p) => [p.color, p]));
+  const activeColor = currentPlayer?.color;
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center p-4 gap-3 overflow-y-auto">
-      {/* Turn / player indicator */}
-      <div className="flex items-center gap-2 flex-wrap justify-center shrink-0">
-        {gameState.players.map((p, i) => (
-          <div
-            key={p.userId}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1
-                        ${i === gameState.currentPlayerIndex ? 'border-amber shadow-glow-sm scale-105' : 'border-border opacity-70'}`}
-            style={{ color: COLOR_HEX[p.color] }}
-          >
-            {p.isBot && <span title="Bot player">🤖</span>}
-            {p.displayName}
-          </div>
-        ))}
-      </div>
-
+    <div className="relative w-full h-full flex flex-col items-center p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden">
       {/* Dice + status — kept above the board so it's never scrolled out of view */}
       <div className="flex items-center gap-4 shrink-0">
-        <div className={`w-14 h-14 rounded-xl bg-raised border border-border
-                         flex items-center justify-center text-2xl font-display font-bold text-bright
-                         ${isRolling ? 'animate-bounce' : ''}`}>
-          {isRolling ? rollingFace : (gameState.diceValue ?? '—')}
-        </div>
+        <DiceFace value={isRolling ? rollingFace : (gameState.diceValue ?? 1)} rolling={isRolling} />
         {isMyTurn && !isRolling && gameState.diceValue === null && (
           <button onClick={handleRoll} className="btn-primary">🎲 Roll Dice</button>
         )}
@@ -139,7 +146,7 @@ export default function LudoBoard({ isSolo = false }) {
           <p className="text-sub text-sm">Rolling…</p>
         )}
         {isMyTurn && !isRolling && gameState.diceValue !== null && legalTokenIds.length > 0 && (
-          <p className="text-sub text-sm">Tap a glowing token to move it</p>
+          <p className="text-sub text-sm">Tap a blinking token to move it</p>
         )}
         {!isMyTurn && !gameState.winner && (
           <p className="text-dim text-sm flex items-center gap-1">
@@ -148,70 +155,76 @@ export default function LudoBoard({ isSolo = false }) {
         )}
       </div>
 
-      {/* Board */}
-      <svg viewBox="0 0 15 15" className="w-full max-w-[480px] aspect-square shrink-0">
-        <rect x={0} y={0} width={15} height={15} fill="#080a0f" />
+      {/* Board — sized to whichever is smaller, available width or height,
+          so it never gets cut off on any screen (phone/tablet/laptop). */}
+      <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+        <svg viewBox="0 0 15 15" className="h-full max-h-full max-w-full" style={{ aspectRatio: '1' }}>
+          <rect x={0} y={0} width={15} height={15} fill="#080a0f" />
 
-        {Object.entries(BASE_TOP_LEFT).map(([color, [r, c]]) => {
-          const owner = ownerByColor[color];
-          return (
-            <g key={color}>
-              <rect x={c} y={r} width={6} height={6}
-                    fill={`${COLOR_HEX[color]}18`} stroke={COLOR_HEX[color]} strokeWidth={0.06} rx={0.3} />
-              {/* 4 empty token sockets so the base always reads as "4 slots" even before pieces render */}
-              {[[1, 1], [1, 4], [4, 1], [4, 4]].map(([dr, dc], i) => (
-                <circle key={i} cx={c + dc + 0.5} cy={r + dr + 0.5} r={0.34}
-                        fill="none" stroke={`${COLOR_HEX[color]}55`} strokeWidth={0.03} strokeDasharray="0.08 0.06" />
-              ))}
-              {owner && (
-                <text x={c + 3} y={r + 0.55} textAnchor="middle" fontSize={0.42}
-                      fill={COLOR_HEX[color]} fontWeight="600">
-                  {owner.isBot ? '🤖 ' : ''}{owner.displayName}
-                </text>
-              )}
-            </g>
-          );
-        })}
+          {Object.entries(BASE_TOP_LEFT).map(([color, [r, c]]) => {
+            const owner = ownerByColor[color];
+            const isTurn = color === activeColor;
+            return (
+              <g key={color}>
+                <rect x={c} y={r} width={6} height={6}
+                      fill={`${COLOR_HEX[color]}18`}
+                      stroke={COLOR_HEX[color]} strokeWidth={isTurn ? 0.12 : 0.06} rx={0.3}
+                      className={isTurn ? 'ludo-token-blink' : ''} />
+                {/* 4 empty token sockets so the base always reads as "4 slots" even before pieces render */}
+                {[[1, 1], [1, 4], [4, 1], [4, 4]].map(([dr, dc], i) => (
+                  <circle key={i} cx={c + dc + 0.5} cy={r + dr + 0.5} r={0.34}
+                          fill="none" stroke={`${COLOR_HEX[color]}55`} strokeWidth={0.03} strokeDasharray="0.08 0.06" />
+                ))}
+                {owner && (
+                  <text x={c + 3} y={r + 0.55} textAnchor="middle" fontSize={0.4}
+                        fill={COLOR_HEX[color]} fontWeight="700">
+                    {isTurn ? '▶ ' : ''}{owner.isBot ? '🤖 ' : ''}{owner.displayName}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
-        {TRACK.map(([r, c], i) => (
-          <rect key={`t${i}`} x={c} y={r} width={1} height={1} fill="#141820" stroke="#1e2433" strokeWidth={0.02} />
-        ))}
+          {TRACK.map(([r, c], i) => (
+            <rect key={`t${i}`} x={c} y={r} width={1} height={1} fill="#141820" stroke="#1e2433" strokeWidth={0.02} />
+          ))}
 
-        {SAFE_GLOBAL_SQUARES.map((g) => {
-          const [r, c] = TRACK[g];
-          return <circle key={`s${g}`} cx={c + 0.5} cy={r + 0.5} r={0.12} fill="#f5a623" opacity={0.6} />;
-        })}
+          {SAFE_GLOBAL_SQUARES.map((g) => {
+            const [r, c] = TRACK[g];
+            return <circle key={`s${g}`} cx={c + 0.5} cy={r + 0.5} r={0.12} fill="#f5a623" opacity={0.6} />;
+          })}
 
-        {Object.entries(HOME_STRETCH).map(([color, cells]) =>
-          cells.map(([r, c], i) => (
-            <rect key={`${color}-${i}`} x={c} y={r} width={1} height={1}
-                  fill={`${COLOR_HEX[color]}33`} stroke={COLOR_HEX[color]} strokeWidth={0.02} />
-          ))
-        )}
+          {Object.entries(HOME_STRETCH).map(([color, cells]) =>
+            cells.map(([r, c], i) => (
+              <rect key={`${color}-${i}`} x={c} y={r} width={1} height={1}
+                    fill={`${COLOR_HEX[color]}33`} stroke={COLOR_HEX[color]} strokeWidth={0.02} />
+            ))
+          )}
 
-        <rect x={6} y={6} width={3} height={3} fill="#f5a62322" stroke="#f5a623" strokeWidth={0.06} />
+          <rect x={6} y={6} width={3} height={3} fill="#f5a62322" stroke="#f5a623" strokeWidth={0.06} />
 
-        {Object.entries(gameState.tokens).map(([tokenId, token]) => {
-          const tokenIndex = parseInt(tokenId.split('-')[1], 10);
-          const [r, c] = tokenCell(token.color, token.pos, tokenIndex);
-          const clickable = isMyTurn && !isRolling && legalTokenIds.includes(tokenId);
-          const atHome = token.pos === 'home';
-          return (
-            <circle
-              key={tokenId}
-              cx={c + 0.5}
-              cy={r + 0.5}
-              r={clickable ? 0.42 : atHome ? 0.36 : 0.32}
-              fill={COLOR_HEX[token.color]}
-              stroke={clickable ? '#eef2fc' : '#0a0c12'}
-              strokeWidth={clickable ? 0.08 : 0.05}
-              style={{ cursor: clickable ? 'pointer' : 'default', transition: 'cx 0.25s ease, cy 0.25s ease' }}
-              className={clickable ? 'animate-pulse-dot' : ''}
-              onClick={() => clickable && handleMove(tokenId)}
-            />
-          );
-        })}
-      </svg>
+          {Object.entries(gameState.tokens).map(([tokenId, token]) => {
+            const tokenIndex = parseInt(tokenId.split('-')[1], 10);
+            const [r, c] = tokenCell(token.color, token.pos, tokenIndex);
+            const clickable = isMyTurn && !isRolling && legalTokenIds.includes(tokenId);
+            const atHome = token.pos === 'home';
+            return (
+              <circle
+                key={tokenId}
+                cx={c + 0.5}
+                cy={r + 0.5}
+                r={atHome ? 0.36 : 0.32}
+                fill={COLOR_HEX[token.color]}
+                stroke={clickable ? '#eef2fc' : '#0a0c12'}
+                strokeWidth={clickable ? 0.08 : 0.05}
+                style={{ cursor: clickable ? 'pointer' : 'default', transition: 'cx 0.25s ease, cy 0.25s ease' }}
+                className={clickable ? 'ludo-token-blink' : ''}
+                onClick={() => clickable && handleMove(tokenId)}
+              />
+            );
+          })}
+        </svg>
+      </div>
 
       {/* Win banner */}
       {gameState.winner && (
