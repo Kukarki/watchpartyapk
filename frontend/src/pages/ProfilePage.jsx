@@ -1,17 +1,9 @@
-import { useState, useMemo, useRef, lazy, Suspense } from 'react';
+import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore.js';
 import { userApi } from '@/api/user.api.js';
 import AppShell from '@/components/layout/AppShell.jsx';
-import AvatarErrorBoundary from '@/components/avatar/AvatarErrorBoundary.jsx';
-import { defaultRecipe, EXPRESSIONS } from '@/lib/avatar/avatarCore.js';
-import { buildStarterCatalog, CLOTHING_OPTIONS } from '@/lib/avatar/starterCatalog.js';
-import toast from 'react-hot-toast';
-
-// Lazy-loaded: three.js (and, for the selfie flow, MediaPipe's WASM model)
-// are heavy dependencies, keep them out of the main bundle until someone
-// actually opens the profile page / clicks "Create from selfie".
-const AvatarStage    = lazy(() => import('@/components/avatar/AvatarStage.jsx'));
-const SelfieCapture  = lazy(() => import('@/components/avatar/SelfieCapture.jsx'));
+import Avatar from '@/components/ui/Avatar.jsx';
 
 const BASE = 'https://api.dicebear.com/8.x/avataaars/svg';
 
@@ -49,43 +41,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
-
-  // ── 3D avatar preview (new, experimental — not yet wired to save) ────────
-  const avatarStageRef = useRef(null);
-  const [recipe3d, setRecipe3d] = useState(defaultRecipe);
-  const [catalog3d] = useState(buildStarterCatalog);
-  const [framing3d, setFraming3d] = useState('full');
-  const [expression3d, setExpression3d] = useState('soft_smile');
-  const [showSelfie, setShowSelfie] = useState(false);
-
-  const handleFraming = (name) => {
-    setFraming3d(name);
-    avatarStageRef.current?.setFraming(name);
-  };
-  const handleExpression = (id) => {
-    setExpression3d(id);
-    avatarStageRef.current?.setExpression(id);
-  };
-  const handleOutfit = (slot, id) => {
-    setRecipe3d((r) => {
-      if (slot === 'full') {
-        // toggle: clicking the equipped full outfit again clears it
-        return { ...r, outfit: { ...r.outfit, full: r.outfit.full === id ? null : id } };
-      }
-      // picking a separate top/bottom/shoes piece overrides any full outfit
-      return { ...r, outfit: { ...r.outfit, [slot]: id, full: null } };
-    });
-  };
-  const handleSelfieResult = ({ skin, faceShape, hairColor, hairStyle }) => {
-    setRecipe3d((r) => ({
-      ...r,
-      body: { ...r.body, skin },
-      face: { ...r.face, shape: faceShape },
-      hair: { ...r.hair, id: hairStyle, color: hairColor },
-    }));
-    setShowSelfie(false);
-    toast.success('Applied! Fine-tune anything below.');
-  };
 
   // Build the DiceBear URL from current traits
   const avatarUrl = useMemo(() => {
@@ -187,130 +142,20 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* 3D avatar preview — new, experimental, not yet wired to save.
-            Isolated in its own error boundary + lazy chunk so if WebGL is
-            unsupported or three.js fails to load, nothing above breaks. */}
-        <div className="card p-6 mt-6 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display font-semibold text-bright text-base">3D Character Preview</h2>
-              <p className="text-dim text-xs mt-0.5">Early preview — not connected to your saved profile yet.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSelfie(true)}
-              className="btn-ghost text-xs px-3 py-1.5 border border-border shrink-0 whitespace-nowrap"
-            >
-              📸 Create from selfie
-            </button>
+        {/* Ready Player Me avatar closet — the 3D avatar creator + inventory
+            now live on their own page (RPMAvatarCreator/AvatarClosetPage). */}
+        <Link
+          to="/avatar-closet"
+          className="card p-6 mt-6 flex items-center gap-4 hover:border-amber/30 transition-colors duration-300"
+        >
+          <Avatar src={user?.avatar} name={user?.displayName} size="lg" />
+          <div className="flex-1 min-w-0">
+            <h2 className="font-display font-semibold text-bright text-base">Avatar Closet</h2>
+            <p className="text-dim text-xs mt-0.5">Create a 3D avatar and equip items from your inventory.</p>
           </div>
-
-          <div className="h-80 rounded-xl overflow-hidden bg-void border border-border">
-            <AvatarErrorBoundary>
-              <Suspense fallback={
-                <div className="w-full h-full flex items-center justify-center text-dim text-xs">
-                  Loading 3D preview…
-                </div>
-              }>
-                <AvatarStage
-                  ref={avatarStageRef}
-                  recipe={recipe3d}
-                  catalogIndex={catalog3d}
-                  framing={framing3d}
-                  autoRotate
-                />
-              </Suspense>
-            </AvatarErrorBoundary>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {['full', 'bust', 'head', 'face'].map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => handleFraming(name)}
-                className={`px-3 py-1.5 rounded-lg text-xs capitalize border transition-all
-                  ${framing3d === name ? 'border-amber text-amber bg-amber/10' : 'border-border text-dim hover:text-sub'}`}
-              >
-                {name}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => avatarStageRef.current?.playEmote('wave')}
-              className="px-3 py-1.5 rounded-lg text-xs border border-border text-dim hover:text-sub transition-all"
-            >
-              👋 Wave
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {EXPRESSIONS.map((ex) => (
-              <button
-                key={ex.id}
-                type="button"
-                onClick={() => handleExpression(ex.id)}
-                title={ex.name}
-                className={`w-9 h-9 flex items-center justify-center rounded-lg text-base border transition-all
-                  ${expression3d === ex.id ? 'border-amber bg-amber/10' : 'border-border hover:border-sub/40'}`}
-              >
-                {ex.emoji}
-              </button>
-            ))}
-          </div>
-
-          {/* Outfit pickers */}
-          <div className="space-y-3 pt-2 border-t border-border">
-            {[
-              { slot: 'top',    label: 'Top' },
-              { slot: 'bottom', label: 'Bottom' },
-              { slot: 'shoes',  label: 'Shoes' },
-              { slot: 'full',   label: 'Full outfit' },
-            ].map(({ slot, label }) => (
-              <div key={slot}>
-                <label className="block text-sub text-xs font-mono uppercase tracking-widest mb-2">
-                  {label}
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {CLOTHING_OPTIONS[slot].map((item) => {
-                    const selected = slot === 'full'
-                      ? recipe3d.outfit.full === item.id
-                      : recipe3d.outfit[slot] === item.id && !recipe3d.outfit.full;
-                    const color = item.colorways?.[0]?.primary || '#5A6273';
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleOutfit(slot, item.id)}
-                        title={item.name}
-                        className={`flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-full border transition-all
-                          ${selected ? 'border-amber bg-amber/10' : 'border-border hover:border-sub/40'}`}
-                      >
-                        <span className="w-5 h-5 rounded-full border border-border/50 shrink-0"
-                              style={{ backgroundColor: color }} />
-                        <span className={`text-xs whitespace-nowrap ${selected ? 'text-amber' : 'text-dim'}`}>
-                          {item.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+          <span className="text-amber text-sm shrink-0">Open →</span>
+        </Link>
       </div>
-
-      {showSelfie && (
-        <AvatarErrorBoundary>
-          <Suspense fallback={null}>
-            <SelfieCapture
-              onResult={handleSelfieResult}
-              onClose={() => setShowSelfie(false)}
-            />
-          </Suspense>
-        </AvatarErrorBoundary>
-      )}
     </div>
     </AppShell>
   );

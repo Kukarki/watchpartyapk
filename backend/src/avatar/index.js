@@ -12,11 +12,15 @@
 // Optional env: AVATAR_BUCKET (default 'avatars'), AVATAR_DEV_KEY
 const express = require('express');
 
-function createAvatarModule() {
+function createAvatarModule({ io } = {}) {
   const router = express.Router();
   // snapshots arrive as base64 PNGs — allow a bigger JSON body on this
   // router only (does not change your app-wide limit)
   router.use(express.json({ limit: '16mb' }));
+
+  // Makes the Socket.io server available to routes that need to broadcast
+  // live updates (e.g. inventory equip/unequip -> member:avatar_updated).
+  router.use((req, _res, next) => { req.io = io; next(); });
 
   router.use('/catalog', require('./catalog.routes'));
   router.use('/avatar', require('./avatar.routes'));

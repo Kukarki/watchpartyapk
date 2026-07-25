@@ -39,6 +39,10 @@ export function RoomProvider({ children }) {
         toast(`${displayName} left`, { icon: '🚪' });
       },
 
+      'member:avatar_updated': ({ userId: uid, equippedItems }) => {
+        store.updateMemberEquippedItems(uid, equippedItems);
+      },
+
       'room:error': ({ code, message }) => {
         toast.error(message || 'Room error');
         if (code === 'NOT_FOUND') navigate('/home');

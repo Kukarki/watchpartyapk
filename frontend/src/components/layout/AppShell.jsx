@@ -6,11 +6,12 @@ import { EXTENSION_REPO_URL } from '@/constants.js';
 import GradientButton from '@/components/ui/GradientButton.jsx';
 
 const NAV_ITEMS = [
-  { to: '/home',    label: 'Home',    icon: '🏠' },
-  { to: '/music',   label: 'Music',   icon: '🎵' },
-  { to: '/games',   label: 'Games',   icon: '🎲' },
-  { to: '/friends', label: 'Friends', icon: '👥' },
-  { to: '/how-to',  label: 'Support', icon: '🛟' },
+  { to: '/home',          label: 'Home',    icon: '🏠' },
+  { to: '/avatar-closet', label: 'Avatar',  icon: '🧑‍🎨' },
+  { to: '/music',         label: 'Music',   icon: '🎵' },
+  { to: '/games',         label: 'Games',   icon: '🎲' },
+  { to: '/friends',       label: 'Friends', icon: '👥' },
+  { to: '/how-to',        label: 'Support', icon: '🛟' },
 ];
 
 export default function AppShell({ children }) {

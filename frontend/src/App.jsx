@@ -24,6 +24,8 @@ import PrivacyPage         from '@/pages/PrivacyPage.jsx';
 import FriendsPage         from '@/pages/FriendsPage.jsx';
 import GamesPage           from '@/pages/GamesPage.jsx';
 import GameRoomPage        from '@/pages/GameRoomPage.jsx';
+import AvatarClosetPage    from '@/pages/AvatarClosetPage.jsx';
+import InventoryPage       from '@/pages/InventoryPage.jsx';
 import InstallPrompt       from '@/components/pwa/InstallPrompt.jsx';
 
 export default function App() {
@@ -54,6 +56,8 @@ export default function App() {
             <Route path="/auth/spotify/callback" element={<SpotifyCallbackPage />} />
             <Route path="/auth/youtube/callback" element={<YouTubeCallbackPage />} />
             <Route path="/games" element={<GamesPage />} />
+            <Route path="/avatar-closet" element={<AvatarClosetPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
             <Route
               path="/room/:roomId"
               element={

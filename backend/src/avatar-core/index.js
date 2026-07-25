@@ -3,5 +3,4 @@ module.exports = {
   ...require('./constants'),
   ...require('./levels'),
   ...require('./xpRules'),
-  ...require('./recipe'),
 };

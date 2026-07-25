@@ -11,6 +11,12 @@ import webrtcRoutes   from './webrtc.routes.js';
 
 const router = Router();
 
+// Avatar system (catalog/shop/inventory/progression/gifts) is mounted
+// directly in server.js instead, since it needs the Socket.io `io` instance
+// (only available after HTTP server creation) to broadcast equip/unequip
+// updates — mounting it here too previously double-mounted it at the same
+// path, bypassing the rate limiter on one of the two copies.
+
 // Auth — guest login, email register/login, OAuth callback, profile
 router.use('/auth', authRoutes);
 

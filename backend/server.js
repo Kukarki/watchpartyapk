@@ -60,16 +60,17 @@ async function bootstrap() {
     stream: { write: (msg) => logger.http(msg.trim()) },
   }));
 
-  // 3. Routes — avatar-system gets its own 16 MB JSON limit (for snapshot uploads)
-  app.use('/api/v1/avatar-system', createAvatarModule().router);
-  app.use('/api/v1', apiLimiter, apiRoutes);
-  app.use(notFound);
-  app.use(errorHandler);
-
-  // 4. HTTP + Socket.io
+  // 3. HTTP + Socket.io — created before route mounting so avatar-system
+  // (equip/unequip) can broadcast live updates through the same `io`.
   const httpServer = http.createServer(app);
   const io = initSocketServer(httpServer);
   attachGamesWithAvatarXp(io);
+
+  // 4. Routes — avatar-system gets its own 16 MB JSON limit (for snapshot uploads)
+  app.use('/api/v1/avatar-system', createAvatarModule({ io }).router);
+  app.use('/api/v1', apiLimiter, apiRoutes);
+  app.use(notFound);
+  app.use(errorHandler);
 
   httpServer.listen(config.port, () => {
     logger.info('🚀 WatchParty server running', { port: config.port, env: config.env });

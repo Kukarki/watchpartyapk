@@ -48,6 +48,11 @@ export const useRoomStore = create((set, get) => ({
   removeMember: (userId) =>
     set((s) => ({ members: s.members.filter((m) => m.userId !== userId) })),
 
+  updateMemberEquippedItems: (userId, equippedItems) =>
+    set((s) => ({
+      members: s.members.map((m) => (m.userId === userId ? { ...m, equippedItems } : m)),
+    })),
+
   // ── Video ─────────────────────────────────────────────
 
   setVideoState: (patch) =>
