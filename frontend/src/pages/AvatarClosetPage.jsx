@@ -1,23 +1,16 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore.js';
 import { avatarSystemApi } from '@/api/avatarSystem.api.js';
 import AppShell from '@/components/layout/AppShell.jsx';
 import Avatar from '@/components/ui/Avatar.jsx';
 import { RARITY_COLORS } from '@/lib/itemRarity.js';
-import toast from 'react-hot-toast';
-
-// Heavy only in the sense of pulling in an external iframe flow — keep it
-// out of the initial closet-page bundle until someone clicks "Customize".
-const RPMAvatarCreator = lazy(() => import('@/components/avatar/RPMAvatarCreator.jsx'));
 
 export default function AvatarClosetPage() {
-  const { user, updateUser } = useAuthStore();
+  const { user } = useAuthStore();
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar || null);
   const [equippedItems, setEquippedItems] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showCreator, setShowCreator] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     avatarSystemApi.getAvatar()
@@ -28,25 +21,6 @@ export default function AvatarClosetPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  const handleAvatarCreated = async (glbUrl) => {
-    setShowCreator(false);
-    setSaving(true);
-    try {
-      // RPM's 2D render API — a portrait PNG of the same avatar, cheap to
-      // embed wherever the app already shows a flat avatar image (chat,
-      // member list, room header) via the existing <Avatar src=.../>.
-      const renderUrl = glbUrl.replace(/\.glb($|\?)/, '.png$1');
-      const data = await avatarSystemApi.saveAvatarUrl(renderUrl);
-      setAvatarUrl(data.avatarUrl);
-      updateUser({ avatar: data.avatarUrl });
-      toast.success('Avatar saved!');
-    } catch {
-      toast.error('Could not save your avatar');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <AppShell>
@@ -61,18 +35,10 @@ export default function AvatarClosetPage() {
           )}
           <div>
             <p className="text-bright font-medium">{user?.displayName}</p>
-            <p className="text-dim text-xs mt-1">
-              {avatarUrl ? 'Powered by Ready Player Me' : "You haven't created an avatar yet"}
-            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowCreator(true)}
-            disabled={saving}
-            className="btn-primary disabled:opacity-40"
-          >
-            {saving ? 'Saving…' : avatarUrl ? 'Edit Avatar' : 'Create Avatar'}
-          </button>
+          <Link to="/profile" className="btn-primary">
+            Edit Avatar
+          </Link>
         </div>
 
         <div className="card p-6 mt-6">
@@ -99,15 +65,6 @@ export default function AvatarClosetPage() {
           )}
         </div>
       </div>
-
-      {showCreator && (
-        <Suspense fallback={null}>
-          <RPMAvatarCreator
-            onAvatarCreated={handleAvatarCreated}
-            onClose={() => setShowCreator(false)}
-          />
-        </Suspense>
-      )}
     </AppShell>
   );
 }

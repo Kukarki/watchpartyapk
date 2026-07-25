@@ -1,15 +1,17 @@
-// Ready Player Me avatar storage — the avatar itself is just a URL (RPM
-// hosts the 3D model + 2D render), so this is deliberately thin compared to
-// the old procedural-recipe version it replaces. `profiles` (the app's
-// existing user-profile table) is the single source of truth for
-// `avatar_url`; `equipped_items` is a per-category cache of the caller's
-// currently-equipped inventory items, kept in sync by inventory.routes.js.
+// Avatar storage — `profiles` (the app's existing user-profile table) is
+// the single source of truth for `avatar_url` (a DiceBear image URL by
+// default, editable on the Profile page); `equipped_items` is a
+// per-category cache of the caller's currently-equipped inventory items,
+// kept in sync by inventory.routes.js.
 const { getSupabase } = require('./supabaseClient');
 
-const RPM_HOST_PATTERN = /^https:\/\/(models|api)\.readyplayer\.me\//;
-
-function isValidRpmUrl(url) {
-  return typeof url === 'string' && RPM_HOST_PATTERN.test(url);
+function isValidAvatarUrl(url) {
+  if (typeof url !== 'string' || !url) return false;
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 async function getAvatar(userId) {
@@ -27,8 +29,8 @@ async function getAvatar(userId) {
 }
 
 async function saveAvatarUrl(userId, avatarUrl) {
-  if (!isValidRpmUrl(avatarUrl)) {
-    const err = new Error('avatarUrl must be a readyplayer.me URL');
+  if (!isValidAvatarUrl(avatarUrl)) {
+    const err = new Error('avatarUrl must be a valid https URL');
     err.status = 422;
     throw err;
   }
@@ -60,4 +62,4 @@ async function publicCard(userId) {
   };
 }
 
-module.exports = { isValidRpmUrl, getAvatar, saveAvatarUrl, publicCard };
+module.exports = { isValidAvatarUrl, getAvatar, saveAvatarUrl, publicCard };
