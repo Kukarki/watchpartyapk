@@ -1,7 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { useAuthStore } from '@/store/authStore.js';
 import { userApi } from '@/api/user.api.js';
 import AppShell from '@/components/layout/AppShell.jsx';
+import AvatarErrorBoundary from '@/components/avatar/AvatarErrorBoundary.jsx';
+import { defaultRecipe, EXPRESSIONS } from '@/lib/avatar/avatarCore.js';
+
+// Lazy-loaded: three.js is a heavy dependency, keep it out of the main
+// bundle until someone actually opens the profile page.
+const AvatarStage = lazy(() => import('@/components/avatar/AvatarStage.jsx'));
 
 const BASE = 'https://api.dicebear.com/8.x/avataaars/svg';
 
@@ -39,6 +45,21 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+
+  // ── 3D avatar preview (new, experimental — not yet wired to save) ────────
+  const avatarStageRef = useRef(null);
+  const [recipe3d] = useState(defaultRecipe);
+  const [framing3d, setFraming3d] = useState('full');
+  const [expression3d, setExpression3d] = useState('soft_smile');
+
+  const handleFraming = (name) => {
+    setFraming3d(name);
+    avatarStageRef.current?.setFraming(name);
+  };
+  const handleExpression = (id) => {
+    setExpression3d(id);
+    avatarStageRef.current?.setExpression(id);
+  };
 
   // Build the DiceBear URL from current traits
   const avatarUrl = useMemo(() => {
@@ -138,6 +159,70 @@ export default function ProfilePage() {
                   className="btn-primary w-full justify-center py-3 disabled:opacity-40">
             {loading ? 'Saving...' : 'Save Character'}
           </button>
+        </div>
+
+        {/* 3D avatar preview — new, experimental, not yet wired to save.
+            Isolated in its own error boundary + lazy chunk so if WebGL is
+            unsupported or three.js fails to load, nothing above breaks. */}
+        <div className="card p-6 mt-6 space-y-4">
+          <div>
+            <h2 className="font-display font-semibold text-bright text-base">3D Character Preview</h2>
+            <p className="text-dim text-xs mt-0.5">Early preview — not connected to your saved profile yet.</p>
+          </div>
+
+          <div className="h-80 rounded-xl overflow-hidden bg-void border border-border">
+            <AvatarErrorBoundary>
+              <Suspense fallback={
+                <div className="w-full h-full flex items-center justify-center text-dim text-xs">
+                  Loading 3D preview…
+                </div>
+              }>
+                <AvatarStage
+                  ref={avatarStageRef}
+                  recipe={recipe3d}
+                  catalogIndex={new Map()}
+                  framing={framing3d}
+                  autoRotate
+                />
+              </Suspense>
+            </AvatarErrorBoundary>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {['full', 'bust', 'head', 'face'].map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => handleFraming(name)}
+                className={`px-3 py-1.5 rounded-lg text-xs capitalize border transition-all
+                  ${framing3d === name ? 'border-amber text-amber bg-amber/10' : 'border-border text-dim hover:text-sub'}`}
+              >
+                {name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => avatarStageRef.current?.playEmote('wave')}
+              className="px-3 py-1.5 rounded-lg text-xs border border-border text-dim hover:text-sub transition-all"
+            >
+              👋 Wave
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {EXPRESSIONS.map((ex) => (
+              <button
+                key={ex.id}
+                type="button"
+                onClick={() => handleExpression(ex.id)}
+                title={ex.name}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg text-base border transition-all
+                  ${expression3d === ex.id ? 'border-amber bg-amber/10' : 'border-border hover:border-sub/40'}`}
+              >
+                {ex.emoji}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
