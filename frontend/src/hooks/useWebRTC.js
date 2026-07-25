@@ -25,7 +25,7 @@ export function useWebRTC() {
   const startLocalMedia = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
       });
       localStreamRef.current = stream;
@@ -36,7 +36,10 @@ export function useWebRTC() {
       // Camera denied or missing — fall back to audio-only
       if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
         try {
-          const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          const audioOnly = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: false,
+          });
           localStreamRef.current = audioOnly;
           setLocalStream(audioOnly);
           setIsCameraOff(true);
