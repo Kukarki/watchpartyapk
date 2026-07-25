@@ -51,6 +51,7 @@ export default function ScreenShare({ roomId }) {
     };
 
     pc.onconnectionstatechange = () => {
+      console.info(`[ScreenShare] connectionState -> ${pc.connectionState} (viewer ${viewerId})`);
       if (pc.connectionState === 'failed') {
         toast.error('Could not connect to a viewer — they may be behind a restrictive network.');
       }
@@ -59,6 +60,15 @@ export default function ScreenShare({ roomId }) {
         delete peersRef.current[viewerId];
       }
     };
+
+    setTimeout(() => {
+      if (peersRef.current[viewerId] === pc && pc.connectionState !== 'connected') {
+        console.warn('[ScreenShare] Connection stalled', {
+          viewerId, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState,
+        });
+        toast.error('Screen share connection timed out — the relay server may be unreachable.');
+      }
+    }, 15000);
 
     return pc;
   }
@@ -78,6 +88,7 @@ export default function ScreenShare({ roomId }) {
     };
 
     pc.onconnectionstatechange = () => {
+      console.info(`[ScreenShare] connectionState -> ${pc.connectionState} (sharer ${sharerId})`);
       if (pc.connectionState === 'failed') {
         toast.error('Could not connect to the screen share — the sharer may be behind a restrictive network.');
       }
@@ -88,6 +99,15 @@ export default function ScreenShare({ roomId }) {
         setSharedBy(null);
       }
     };
+
+    setTimeout(() => {
+      if (peersRef.current[sharerId] === pc && pc.connectionState !== 'connected') {
+        console.warn('[ScreenShare] Connection stalled', {
+          sharerId, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState,
+        });
+        toast.error('Screen share connection timed out — the relay server may be unreachable.');
+      }
+    }, 15000);
 
     return pc;
   }

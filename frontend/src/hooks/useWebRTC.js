@@ -95,6 +95,7 @@ export function useWebRTC() {
 
     // Auto-cleanup on peer disconnect
     pc.onconnectionstatechange = () => {
+      console.info(`[WebRTC] connectionState -> ${pc.connectionState} (peer ${remoteUserId})`);
       if (pc.connectionState === 'failed') {
         setCallError('Connection to a participant failed — they may be behind a restrictive network.');
       }
@@ -102,6 +103,24 @@ export function useWebRTC() {
         destroyPeer(remoteUserId);
       }
     };
+    pc.oniceconnectionstatechange = () => {
+      console.info(`[WebRTC] iceConnectionState -> ${pc.iceConnectionState} (peer ${remoteUserId})`);
+    };
+
+    // WebRTC can stall in "connecting"/"checking" forever without ever
+    // reaching "failed" -- no event fires, so nothing above catches it.
+    // Treat "still not connected after 15s" as an effective failure too.
+    setTimeout(() => {
+      if (peersRef.current[remoteUserId] === pc && pc.connectionState !== 'connected') {
+        console.warn('[WebRTC] Connection stalled', {
+          peer: remoteUserId,
+          connectionState: pc.connectionState,
+          iceConnectionState: pc.iceConnectionState,
+          iceGatheringState: pc.iceGatheringState,
+        });
+        setCallError(`Connection timed out — could not reach ${remoteUserId.slice(0, 8)}. This usually means the call relay server isn't reachable.`);
+      }
+    }, 15000);
 
     if (isInitiator) {
       pc.createOffer()
