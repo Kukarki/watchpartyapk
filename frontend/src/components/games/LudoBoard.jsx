@@ -51,6 +51,28 @@ export default function LudoBoard({ isSolo = false }) {
     clearTimeout(rollTimeoutRef.current);
   }, []);
 
+  // Board sizing: measure the actual container pixel size and set the SVG
+  // to min(width, height) directly, instead of relying on CSS
+  // height-percentage/aspect-ratio propagating correctly through an
+  // arbitrary flexbox ancestor chain (which proved unreliable here).
+  const boardWrapRef = useRef(null);
+  const [boardSize, setBoardSize] = useState(320);
+  useEffect(() => {
+    const el = boardWrapRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      const size = Math.max(120, Math.floor(Math.min(w, h)));
+      setBoardSize(size);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [gameState != null]);
+
   const isHost = room?.hostId === user?.userId;
   const currentPlayer = gameState?.players?.[gameState.currentPlayerIndex];
   const isMyTurn = !!currentPlayer && currentPlayer.userId === user?.userId;
@@ -157,8 +179,8 @@ export default function LudoBoard({ isSolo = false }) {
 
       {/* Board — sized to whichever is smaller, available width or height,
           so it never gets cut off on any screen (phone/tablet/laptop). */}
-      <div className="flex-1 min-h-0 w-full flex items-center justify-center">
-        <svg viewBox="0 0 15 15" className="h-full max-h-full max-w-full" style={{ aspectRatio: '1' }}>
+      <div ref={boardWrapRef} className="flex-1 min-h-0 w-full flex items-center justify-center">
+        <svg viewBox="0 0 15 15" width={boardSize} height={boardSize}>
           <rect x={0} y={0} width={15} height={15} fill="#080a0f" />
 
           {Object.entries(BASE_TOP_LEFT).map(([color, [r, c]]) => {
