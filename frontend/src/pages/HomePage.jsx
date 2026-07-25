@@ -7,6 +7,7 @@ import AppShell from '@/components/layout/AppShell.jsx';
 import Avatar from '@/components/ui/Avatar.jsx';
 import { useExtensionPresent } from '@/hooks/useExtensionPresent.js';
 import { EXTENSION_REPO_URL } from '@/constants.js';
+import GradientButton from '@/components/ui/GradientButton.jsx';
 import toast from 'react-hot-toast';
 
 export const PLATFORMS = [
@@ -155,13 +156,8 @@ export default function HomePage() {
             <p className="text-dim text-xs flex-1 min-w-[180px]">
               Install the extension to sync Netflix, Prime Video and more.
             </p>
-            <a
-              href={EXTENSION_REPO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-amber text-xs font-medium hover:underline underline-offset-2 shrink-0"
-            >
-              Get the Extension →
+            <a href={EXTENSION_REPO_URL} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <GradientButton as="span" className="text-xs px-3 py-1.5">Get the Extension →</GradientButton>
             </a>
           </div>
         )}
@@ -181,9 +177,9 @@ export default function HomePage() {
             <p className="text-sub text-sm mb-6">Host a watch party. Share the room code with friends.</p>
 
             {!showCreate ? (
-              <button onClick={() => setShowCreate(true)} className="btn-primary">
+              <GradientButton onClick={() => setShowCreate(true)} className="px-5 py-2.5">
                 Create Room
-              </button>
+              </GradientButton>
             ) : (
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
@@ -213,13 +209,14 @@ export default function HomePage() {
                   />
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <button
+                  <GradientButton
+                    as="button"
                     type="submit"
                     disabled={creating || !roomName.trim()}
-                    className="btn-primary flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {creating ? 'Creating...' : 'Create →'}
-                  </button>
+                  </GradientButton>
                   <button
                     type="button"
                     onClick={() => setShowCreate(false)}
@@ -252,13 +249,14 @@ export default function HomePage() {
                   maxLength={8}
                 />
               </div>
-              <button
+              <GradientButton
+                as="button"
                 type="submit"
                 disabled={!joinCode.trim()}
-                className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Join Room →
-              </button>
+              </GradientButton>
             </form>
           </div>
         </div>

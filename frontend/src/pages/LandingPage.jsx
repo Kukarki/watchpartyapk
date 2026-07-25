@@ -3,11 +3,7 @@ import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { PLATFORMS } from './HomePage.jsx';
 import { EXTENSION_REPO_URL, HOW_IT_WORKS_STEPS } from '@/constants.js';
-
-// A punchier two-tone gradient reserved for this marketing page's primary
-// CTAs, distinct from the flat amber `.btn-primary` used everywhere else in
-// the app — gives the landing page its own "dashing" identity.
-const BRAND_GRADIENT = 'linear-gradient(135deg, #f5a623 0%, #ec4899 100%)';
+import GradientButton, { BRAND_GRADIENT } from '@/components/ui/GradientButton.jsx';
 
 const FEATURES = [
   { icon: '⚡', title: 'Frame-perfect sync', desc: 'Play, pause and seek stay in lock-step for everyone in the room.' },
@@ -21,19 +17,6 @@ const CHAT_PREVIEW = [
   { name: 'Sam', color: '#3b82f6', msg: 'lfg' },
   { name: 'Kai', color: '#22d3a0', msg: '😂😂😂' },
 ];
-
-function GradientButton({ as: As = 'button', className = '', children, ...props }) {
-  return (
-    <As
-      className={`inline-flex items-center justify-center font-display font-semibold text-void
-                  rounded-xl shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] ${className}`}
-      style={{ background: BRAND_GRADIENT, boxShadow: '0 8px 24px -8px rgba(236,72,153,0.5)' }}
-      {...props}
-    >
-      {children}
-    </As>
-  );
-}
 
 // ── Browser-window mockup pieces, built from CSS — not a real screenshot ──
 function BrowserFrame({ children, url = 'watchparty.app' }) {
@@ -299,7 +282,7 @@ export default function LandingPage() {
                 Watch<span className="text-gradient">Party</span>
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-10 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 sm:gap-14 text-sm">
               <div>
                 <p className="text-dim text-xs font-mono uppercase tracking-widest mb-2.5">Resources</p>
                 <Link to="/how-to" className="block text-sub hover:text-bright transition-colors mb-1.5">How It Works</Link>
@@ -308,6 +291,12 @@ export default function LandingPage() {
               <div>
                 <p className="text-dim text-xs font-mono uppercase tracking-widest mb-2.5">Policies</p>
                 <Link to="/privacy" className="block text-sub hover:text-bright transition-colors">Privacy</Link>
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <p className="text-dim text-xs font-mono uppercase tracking-widest mb-2.5">Need help? Email us at:</p>
+                <a href="mailto:kushalkarki1415@gmail.com" className="text-sub hover:text-bright transition-colors underline-offset-2 hover:underline">
+                  kushalkarki1415@gmail.com
+                </a>
               </div>
             </div>
           </div>

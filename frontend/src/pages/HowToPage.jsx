@@ -32,30 +32,75 @@ const FAQ_ITEMS = [
     q: 'The extension says "not detected" — what do I do?',
     a: 'Make sure it’s loaded and enabled in chrome://extensions, then refresh the WatchParty tab (extensions only activate on a fresh page load). See the install steps above for the full walkthrough.',
   },
+  {
+    q: 'How do I create a room?',
+    a: 'From your dashboard, click "Create Room", give it a name, and share the room code or invite link with friends. You can also pick a platform first (Netflix, Prime Video, etc.) and WatchParty will create the room for you.',
+  },
+  {
+    q: 'What happens if someone doesn’t have the extension installed?',
+    a: 'They can still join the room to chat, react and talk over voice — they just won’t have their playback auto-synced on DRM platforms like Netflix or Prime Video until they install the extension. YouTube always works without it.',
+  },
+  {
+    q: 'Can I use WatchParty on my phone?',
+    a: 'Yes for YouTube and for joining a room to chat/talk — no extension needed. Full sync on Netflix/Prime from a phone currently requires a Chromium browser that supports extensions (like Kiwi on Android); see the mobile section above for details.',
+  },
+  {
+    q: 'How do I delete my account?',
+    a: 'WatchParty doesn’t have a self-service delete button yet — email us from the address on your account and we’ll remove it. See the Privacy Policy for the contact address.',
+  },
 ];
 
 function FAQAccordion() {
+  const [query, setQuery] = useState('');
   const [openIndex, setOpenIndex] = useState(null);
+
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? FAQ_ITEMS.filter((item) => item.q.toLowerCase().includes(q) || item.a.toLowerCase().includes(q))
+    : FAQ_ITEMS;
+
   return (
-    <div className="space-y-2">
-      {FAQ_ITEMS.map(({ q, a }, i) => {
-        const isOpen = openIndex === i;
-        return (
-          <div key={q} className="card overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setOpenIndex(isOpen ? null : i)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
-            >
-              <span className="font-display font-semibold text-bright text-sm">{q}</span>
-              <span className={`shrink-0 text-dim transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
-            </button>
-            {isOpen && (
-              <p className="px-5 pb-4 text-sub text-sm leading-relaxed animate-fade-in">{a}</p>
-            )}
-          </div>
-        );
-      })}
+    <div>
+      <div className="relative mb-4">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dim text-sm pointer-events-none">🔍</span>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpenIndex(null); }}
+          placeholder="Search for a question — e.g. “how many people”, “browsers”, “private”…"
+          className="input-base pl-10"
+        />
+      </div>
+
+      {results.length === 0 ? (
+        <p className="text-dim text-sm px-1">
+          No matches for “{query}” — try a different word, or{' '}
+          <a href="mailto:kushalkarki1415@gmail.com" className="text-amber hover:underline underline-offset-2">
+            email us
+          </a>.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {results.map(({ q: question, a }, i) => {
+            const isOpen = openIndex === i;
+            return (
+              <div key={question} className="card overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenIndex(isOpen ? null : i)}
+                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+                >
+                  <span className="font-display font-semibold text-bright text-sm">{question}</span>
+                  <span className={`shrink-0 text-dim transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+                {isOpen && (
+                  <p className="px-5 pb-4 text-sub text-sm leading-relaxed animate-fade-in">{a}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
