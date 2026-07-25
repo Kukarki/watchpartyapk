@@ -272,6 +272,28 @@ export default function LudoBoard({ isSolo = false }) {
   const ownerByColor = Object.fromEntries(gameState.players.map((p) => [p.color, p]));
   const activeColor = currentPlayer?.color;
 
+  // Two or more tokens can legally share one square (a safe/star square, or
+  // two of the same color moving together) — without this they'd render
+  // exactly on top of each other and only the last-drawn one would be
+  // visible. Group tokens by their current display cell and fan out any
+  // group of 2+ into a small cluster so every token stays visible and
+  // clickable. Tokens still "at home" already have their own 4-slot layout
+  // (each color's base), so they never collide here.
+  const cellGroups = {};
+  for (const [tokenId, token] of Object.entries(gameState.tokens)) {
+    const tokenIndex = parseInt(tokenId.split('-')[1], 10);
+    const displayPos = animOverrides[tokenId] !== undefined ? animOverrides[tokenId] : token.pos;
+    const [r, c] = tokenCell(token.color, displayPos, tokenIndex);
+    const key = `${r},${c}`;
+    (cellGroups[key] ||= []).push(tokenId);
+  }
+  const STACK_OFFSETS = {
+    1: [[0, 0]],
+    2: [[-0.2, -0.2], [0.2, 0.2]],
+    3: [[-0.22, -0.22], [0.22, -0.22], [0, 0.22]],
+    4: [[-0.22, -0.22], [0.22, -0.22], [-0.22, 0.22], [0.22, 0.22]],
+  };
+
   return (
     <div className="relative w-full h-full flex flex-col items-center p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden">
       {gameState.mode === 'power' && (
@@ -384,17 +406,26 @@ export default function LudoBoard({ isSolo = false }) {
             const [r, c] = tokenCell(token.color, displayPos, tokenIndex);
             const clickable = isMyTurn && !isRolling && legalTokenIds.includes(tokenId);
             const atHome = token.pos === 'home';
+
+            const group = cellGroups[`${r},${c}`];
+            const stackSize = Math.min(group.length, 4);
+            const stackIdx = group.indexOf(tokenId);
+            const [offR, offC] = STACK_OFFSETS[stackSize][stackIdx] || [0, 0];
+            const cx = c + 0.5 + offC;
+            const cy = r + 0.5 + offR;
+            const radius = (atHome ? 0.36 : 0.32) * (stackSize > 1 ? 0.62 : 1);
+
             return (
               <g key={tokenId}>
                 {token.shielded && (
-                  <circle cx={c + 0.5} cy={r + 0.5} r={0.48}
+                  <circle cx={cx} cy={cy} r={radius + 0.16}
                           fill="none" stroke="#f5a623" strokeWidth={0.05} strokeDasharray="0.1 0.05"
                           style={{ transition: 'cx 0.25s ease, cy 0.25s ease' }} />
                 )}
                 <circle
-                  cx={c + 0.5}
-                  cy={r + 0.5}
-                  r={atHome ? 0.36 : 0.32}
+                  cx={cx}
+                  cy={cy}
+                  r={radius}
                   fill={COLOR_HEX[token.color]}
                   stroke={clickable ? '#eef2fc' : '#0a0c12'}
                   strokeWidth={clickable ? 0.08 : 0.05}
