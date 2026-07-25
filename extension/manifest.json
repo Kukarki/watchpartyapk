@@ -69,7 +69,7 @@
         "https://watchparty.app/*",
         "https://sandipwatch7.dedyn.io/*"
       ],
-      "js": ["src/content/website-bridge.js"],
+      "js": ["src/content/wp-globals.js", "src/content/website-bridge.js"],
       "run_at": "document_start",
       "all_frames": false
     },
@@ -87,7 +87,7 @@
         "https://kisskh.co/*",
         "https://kisskh.me/*"
       ],
-      "js": ["src/content/streaming-detector.js"],
+      "js": ["src/content/wp-globals.js", "src/content/streaming-detector.js"],
       "run_at": "document_start",
       "all_frames": false
     },
@@ -97,19 +97,19 @@
         "https://www.primevideo.com/*",
         "https://www.amazon.com/gp/video/*"
       ],
-      "js": ["src/content/content-main.js"],
+      "js": ["src/content/wp-globals.js", "src/utils/socket-client.js", "src/content/platform-adapters.js", "src/content/content-main.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
       "matches": ["https://www.netflix.com/watch/*"],
-      "js": ["src/content/content-main.js"],
+      "js": ["src/content/wp-globals.js", "src/utils/socket-client.js", "src/content/platform-adapters.js", "src/content/content-main.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
       "matches": ["https://www.disneyplus.com/video/*"],
-      "js": ["src/content/content-main.js"],
+      "js": ["src/content/wp-globals.js", "src/utils/socket-client.js", "src/content/platform-adapters.js", "src/content/content-main.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
@@ -118,19 +118,19 @@
         "https://www.hbomax.com/*",
         "https://www.max.com/*"
       ],
-      "js": ["src/content/content-main.js"],
+      "js": ["src/content/wp-globals.js", "src/utils/socket-client.js", "src/content/platform-adapters.js", "src/content/content-main.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
       "matches": ["https://www.youtube.com/watch*"],
-      "js": ["src/content/content-main.js"],
+      "js": ["src/content/wp-globals.js", "src/utils/socket-client.js", "src/content/platform-adapters.js", "src/content/content-main.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
       "matches": ["https://tv.apple.com/*"],
-      "js": ["src/content/content-main.js"],
+      "js": ["src/content/wp-globals.js", "src/utils/socket-client.js", "src/content/platform-adapters.js", "src/content/content-main.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
@@ -139,7 +139,7 @@
         "https://kisskh.co/Drama/*",
         "https://kisskh.me/Drama/*"
       ],
-      "js": ["src/content/content-main.js"],
+      "js": ["src/content/wp-globals.js", "src/utils/socket-client.js", "src/content/platform-adapters.js", "src/content/content-main.js"],
       "run_at": "document_idle",
       "all_frames": false
     }

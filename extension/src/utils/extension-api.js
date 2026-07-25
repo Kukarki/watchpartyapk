@@ -1,6 +1,11 @@
 /**
  * extension-api.js
  * Cross-browser wrapper for chrome/browser extension APIs.
+ *
+ * ES module — used by the background service worker and popup.js, both of
+ * which load with "type": "module" and can use import/export. Content
+ * scripts (manifest content_scripts entries) can't be modules, so they use
+ * the classic-script shim in content/wp-globals.js instead, not this file.
  */
 const ext = globalThis.browser ?? globalThis.chrome;
 const runtime = ext?.runtime || ext;

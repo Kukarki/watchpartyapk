@@ -6,9 +6,11 @@
  *
  * Also listens for WATCHPARTY_PING from any embedded
  * iframe or page scripts.
+ *
+ * Loaded as a classic script (see manifest.json) — wp-globals.js must run
+ * first in the same content_scripts entry to populate window.__WP__.api.
  */
-
-import { getManifest } from '../utils/extension-api.js';
+const { getManifest } = window.__WP__.api;
 
 // Immediately flag this page as having the extension
 window.__WATCHPARTY_EXTENSION__ = true;

@@ -7,11 +7,15 @@
  *   3. Listen for video events and broadcast them
  *   4. Receive remote events and apply them to the video
  *   5. Inject the floating overlay UI
+ *
+ * Loaded as a classic script (see manifest.json) — wp-globals.js,
+ * platform-adapters.js and socket-client.js must run first in the same
+ * content_scripts entry to populate window.__WP__.
  */
 
-import { detectAdapter } from './platform-adapters.js';
-import { SocketClient } from '../utils/socket-client.js';
-import { getURL, storageGet } from '../utils/extension-api.js';
+const { detectAdapter } = window.__WP__.adapters;
+const { SocketClient } = window.__WP__;
+const { getURL, storageGet } = window.__WP__.api;
 
 // ── Constants ────────────────────────────────────────────
 const SYNC_THRESHOLD_S = 2;

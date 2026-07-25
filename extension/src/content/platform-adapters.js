@@ -11,7 +11,7 @@
  *   - logoColor         → string hex
  */
 
-export const ADAPTERS = [
+const ADAPTERS = [
   // ── Amazon Prime Video ──────────────────────────────────
   {
     platform: 'primevideo',
@@ -167,6 +167,9 @@ export const ADAPTERS = [
   },
 ];
 
-export function detectAdapter() {
+function detectAdapter() {
   return ADAPTERS.find((a) => a.matches()) || null;
 }
+
+window.__WP__ = window.__WP__ || {};
+window.__WP__.adapters = { ADAPTERS, detectAdapter };

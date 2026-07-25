@@ -6,7 +6,7 @@
  * Implements the same event protocol as the web app:
  * room:join, video:play, video:pause, video:seek, chat:message, etc.
  */
-export class SocketClient {
+class SocketClient {
   constructor(serverUrl) {
     this.serverUrl = serverUrl;
     this.ws = null;
@@ -117,3 +117,6 @@ export class SocketClient {
     this.connected = false;
   }
 }
+
+window.__WP__ = window.__WP__ || {};
+window.__WP__.SocketClient = SocketClient;

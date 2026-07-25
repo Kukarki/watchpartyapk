@@ -7,9 +7,11 @@
  * and forwards them to the extension background service worker.
  *
  * Also flags the page so React can detect the extension is installed.
+ *
+ * Loaded as a classic script (see manifest.json) — wp-globals.js must run
+ * first in the same content_scripts entry to populate window.__WP__.api.
  */
-
-import { sendMessage } from '../utils/extension-api.js';
+const { sendMessage } = window.__WP__.api;
 
 // Flag the page immediately so PlatformPage.jsx's synchronous check works
 window.__WATCHPARTY_EXTENSION__ = true;
