@@ -34,15 +34,21 @@ export const EYE_COLORS = [
   { id: 'c_gold', hex: '#D9A93C' }, { id: 'c_onyx', hex: '#20242E' },
 ];
 
+// sx/sy scale the (otherwise plain-sphere) head. The original values here
+// were subtle (~±12%), tuned for a photoreal head mesh where even small
+// proportion shifts read clearly -- on a low-poly sphere they were nearly
+// invisible, so every face shape looked like the same round blob. Widened
+// to ~±25-40% so picking a shape (manually or via the selfie flow) actually
+// looks different, while keeping the cartoon/low-poly silhouette.
 export const FACE_SHAPES = [
   { id: 'f1', name: 'Round',  sx: 1.00, sy: 1.00 },
-  { id: 'f2', name: 'Oval',   sx: 0.92, sy: 1.08 },
-  { id: 'f3', name: 'Square', sx: 1.06, sy: 0.97 },
-  { id: 'f4', name: 'Heart',  sx: 1.02, sy: 1.03 },
-  { id: 'f5', name: 'Long',   sx: 0.88, sy: 1.14 },
-  { id: 'f6', name: 'Soft',   sx: 1.04, sy: 1.04 },
-  { id: 'f7', name: 'Sharp',  sx: 0.95, sy: 1.00 },
-  { id: 'f8', name: 'Wide',   sx: 1.12, sy: 0.95 },
+  { id: 'f2', name: 'Oval',   sx: 0.82, sy: 1.20 },
+  { id: 'f3', name: 'Square', sx: 1.14, sy: 0.90 },
+  { id: 'f4', name: 'Heart',  sx: 1.06, sy: 1.10 },
+  { id: 'f5', name: 'Long',   sx: 0.74, sy: 1.32 },
+  { id: 'f6', name: 'Soft',   sx: 1.10, sy: 1.06 },
+  { id: 'f7', name: 'Sharp',  sx: 0.88, sy: 0.98 },
+  { id: 'f8', name: 'Wide',   sx: 1.28, sy: 0.86 },
 ];
 
 export const EYE_STYLES = [
