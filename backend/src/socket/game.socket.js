@@ -24,19 +24,20 @@ async function maybeRunBotTurn(io, roomId, gameType, state, depth = 0) {
 
   try {
     await delay(1200 + Math.random() * 700);
-    let result = await gameService.applyAction(roomId, gameType, { type: 'roll_dice' }, player.userId);
+
+    // Power mode: the bot may spend one of its game-long dice choices instead
+    // of rolling randomly.
+    let chosenValue = null;
+    if (typeof module.pickBotDiceValue === 'function') {
+      chosenValue = module.pickBotDiceValue(state, player.userId);
+    }
+
+    let result = chosenValue !== null
+      ? await gameService.applyAction(roomId, gameType, { type: 'choose_dice_value', value: chosenValue }, player.userId)
+      : await gameService.applyAction(roomId, gameType, { type: 'roll_dice' }, player.userId);
     io.to(roomId).emit('game:state', result);
 
     let { state: next } = result;
-
-    // Power mode: roll_dice only produces two options; the bot must choose one.
-    if (next.diceOptions && typeof module.pickBotDiceChoice === 'function') {
-      await delay(500 + Math.random() * 300);
-      const chosen = module.pickBotDiceChoice(next.diceOptions);
-      result = await gameService.applyAction(roomId, gameType, { type: 'choose_dice', value: chosen }, player.userId);
-      io.to(roomId).emit('game:state', result);
-      next = result.state;
-    }
 
     if (next.diceValue !== null && next.legalTokenIds?.length > 0) {
       await delay(1000 + Math.random() * 600);

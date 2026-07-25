@@ -21,11 +21,15 @@ function globalSquare(color, pos) {
   return (COLOR_START_OFFSET[color] + pos) % 52;
 }
 
+const POWER_DICE_CHOICES = 2; // per player, for the whole game
+
 // mode: 'classic' (default) — traditional rules only.
 // 'power' adds two things on top of the same traditional rules, never
-// replacing them: (1) each roll offers 2 dice values, player picks one,
-// and (2) a token that just captured is shielded from capture until it
-// next moves. Safe/star squares work identically in both modes.
+// replacing them: (1) each player gets 2 uses, for the entire game, of
+// directly declaring the dice value they want instead of rolling randomly
+// (e.g. "I need a 6 to get out" or "I need a 5 to capture that token"), and
+// (2) a token that just captured is shielded from capture until it next
+// moves. Safe/star squares work identically in both modes.
 function createInitialState(players, opts = {}) {
   if (players.length < 2 || players.length > 4) {
     throw new Error('Ludo needs 2-4 players');
@@ -38,13 +42,17 @@ function createInitialState(players, opts = {}) {
       tokens[`${p.color}-${i}`] = { color: p.color, pos: 'home', shielded: false };
     }
   }
+  const diceChoicesRemaining = {};
+  if (mode === 'power') {
+    for (const p of assigned) diceChoicesRemaining[p.userId] = POWER_DICE_CHOICES;
+  }
   return {
     mode,
     players: assigned,
     tokens,
     currentPlayerIndex: 0,
     diceValue: null,
-    diceOptions: null, // power mode: [a, b] rolled, awaiting the player's choice
+    diceChoicesRemaining, // power mode: { userId: uses left (0-2) }
     consecutiveSixes: 0,
     legalTokenIds: [],
     winner: null,
@@ -70,7 +78,7 @@ function advanceTurn(state) {
   return { currentPlayerIndex: (state.currentPlayerIndex + 1) % state.players.length };
 }
 
-// Shared by both the classic single-roll and power-mode chosen-roll paths —
+// Shared by both a normal random roll and a power-mode declared value —
 // three-sixes forfeit / no-legal-move auto-pass / normal roll all resolve
 // identically once a single roll value has been settled on.
 function resolveRoll(state, player, playerId, roll) {
@@ -80,7 +88,7 @@ function resolveRoll(state, player, playerId, roll) {
   if (consecutiveSixes === 3) {
     const next = advanceTurn(state);
     return {
-      state: { ...state, ...next, diceValue: null, diceOptions: null, consecutiveSixes: 0, legalTokenIds: [] },
+      state: { ...state, ...next, diceValue: null, consecutiveSixes: 0, legalTokenIds: [] },
       events: [{ type: 'forfeit_three_sixes', playerId, roll }],
     };
   }
@@ -90,13 +98,13 @@ function resolveRoll(state, player, playerId, roll) {
     // Nothing this player can legally do with this roll — auto-pass.
     const next = advanceTurn(state);
     return {
-      state: { ...state, ...next, diceValue: null, diceOptions: null, consecutiveSixes: 0, legalTokenIds: [] },
+      state: { ...state, ...next, diceValue: null, consecutiveSixes: 0, legalTokenIds: [] },
       events: [{ type: 'no_legal_moves', playerId, roll }],
     };
   }
 
   return {
-    state: { ...state, diceValue: roll, diceOptions: null, consecutiveSixes, legalTokenIds },
+    state: { ...state, diceValue: roll, consecutiveSixes, legalTokenIds },
     events: [{ type: 'rolled', playerId, roll }],
   };
 }
@@ -108,28 +116,27 @@ function applyAction(state, action, playerId) {
   if (!player || player.userId !== playerId) throw new Error("It's not your turn");
 
   if (action.type === 'roll_dice') {
-    if (state.diceValue !== null || state.diceOptions) throw new Error('Move a token before rolling again');
-
-    if (state.mode === 'power') {
-      const a = 1 + Math.floor(Math.random() * 6);
-      const b = 1 + Math.floor(Math.random() * 6);
-      return {
-        state: { ...state, diceOptions: [a, b] },
-        events: [{ type: 'rolled_options', playerId, options: [a, b] }],
-      };
-    }
-
+    if (state.diceValue !== null) throw new Error('Move a token before rolling again');
     const roll = 1 + Math.floor(Math.random() * 6);
     return resolveRoll(state, player, playerId, roll);
   }
 
-  // Power mode only — pick which of the two rolled_options values to use.
-  if (action.type === 'choose_dice') {
+  // Power mode only — spend one of a player's 2 game-long uses to directly
+  // declare the dice value instead of rolling randomly.
+  if (action.type === 'choose_dice_value') {
     if (state.mode !== 'power') throw new Error('Not available in this mode');
-    if (!state.diceOptions) throw new Error('Roll the dice first');
+    if (state.diceValue !== null) throw new Error('Move a token before rolling again');
+    const remaining = state.diceChoicesRemaining?.[playerId] || 0;
+    if (remaining <= 0) throw new Error('No dice choices left');
     const { value } = action;
-    if (!state.diceOptions.includes(value)) throw new Error('Pick one of the rolled options');
-    return resolveRoll(state, player, playerId, value);
+    if (!Number.isInteger(value) || value < 1 || value > 6) throw new Error('Choose a value between 1 and 6');
+
+    const newRemaining = { ...state.diceChoicesRemaining, [playerId]: remaining - 1 };
+    const result = resolveRoll({ ...state, diceChoicesRemaining: newRemaining }, player, playerId, value);
+    return {
+      state: result.state,
+      events: [{ type: 'power_dice_used', playerId, value, remaining: remaining - 1 }, ...result.events],
+    };
   }
 
   if (action.type === 'move_token') {

@@ -44,6 +44,7 @@ export default function LudoBoard({ isSolo = false }) {
   const [mode, setMode] = useState('classic');
   const [isRolling, setIsRolling] = useState(false);
   const [rollingFace, setRollingFace] = useState(1);
+  const [showValuePicker, setShowValuePicker] = useState(false);
   const rollIntervalRef = useRef(null);
   const rollTimeoutRef = useRef(null);
 
@@ -134,6 +135,10 @@ export default function LudoBoard({ isSolo = false }) {
   const isMyTurn = !!currentPlayer && currentPlayer.userId === user?.userId;
   const legalTokenIds = gameState?.legalTokenIds || [];
 
+  useEffect(() => {
+    if (!isMyTurn || gameState?.diceValue !== null) setShowValuePicker(false);
+  }, [isMyTurn, gameState?.diceValue]);
+
   const handleRoll = () => {
     if (isRolling) return;
     setIsRolling(true);
@@ -147,7 +152,11 @@ export default function LudoBoard({ isSolo = false }) {
     }, ROLL_ANIM_MS);
   };
   const handleMove = (tokenId) => sendGameAction({ type: 'move_token', tokenId });
-  const handleChooseDice = (value) => sendGameAction({ type: 'choose_dice', value });
+  const handleChooseValue = (value) => {
+    setShowValuePicker(false);
+    sendGameAction({ type: 'choose_dice_value', value });
+  };
+  const diceChoicesLeft = gameState?.diceChoicesRemaining?.[user?.userId] ?? 0;
 
   if (!gameState) {
     const maxBots = Math.max(0, 4 - members.length);
@@ -238,7 +247,8 @@ export default function LudoBoard({ isSolo = false }) {
           </div>
           {mode === 'power' && (
             <p className="text-dim text-[11px] max-w-xs mx-auto leading-relaxed">
-              Roll 2 dice and pick which to use, and a token that just captured is shielded until it moves again.
+              Each player gets 2 chances during the whole game to directly declare the dice number they want,
+              and a token that just captured is shielded until it moves again.
             </p>
           )}
 
@@ -272,42 +282,51 @@ export default function LudoBoard({ isSolo = false }) {
       )}
 
       {/* Dice + status — kept above the board so it's never scrolled out of view */}
-      <div className="flex items-center gap-4 shrink-0">
-        {gameState.diceOptions && !isRolling ? (
-          // Power Play: two rolled options, pick one to use
-          <div className="flex items-center gap-2">
-            {gameState.diceOptions.map((val, i) => (
+      <div className="flex flex-col items-center gap-2 shrink-0">
+        <div className="flex items-center gap-4">
+          <DiceFace value={isRolling ? rollingFace : (gameState.diceValue ?? 1)} rolling={isRolling} />
+
+          {isMyTurn && !isRolling && gameState.diceValue === null && (
+            <div className="flex items-center gap-2">
+              <button onClick={handleRoll} className="btn-primary">🎲 Roll Dice</button>
+              {gameState.mode === 'power' && diceChoicesLeft > 0 && (
+                <button
+                  onClick={() => setShowValuePicker((v) => !v)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-amber
+                             text-amber bg-amber/10 hover:bg-amber/20 transition-all"
+                >
+                  🎯 Choose ({diceChoicesLeft} left)
+                </button>
+              )}
+            </div>
+          )}
+          {isMyTurn && isRolling && (
+            <p className="text-sub text-sm">Rolling…</p>
+          )}
+          {isMyTurn && !isRolling && gameState.diceValue !== null && legalTokenIds.length > 0 && (
+            <p className="text-sub text-sm">Tap a blinking token to move it</p>
+          )}
+          {!isMyTurn && !gameState.winner && (
+            <p className="text-dim text-sm flex items-center gap-1">
+              {currentPlayer?.isBot && '🤖'} Waiting for {currentPlayer?.displayName}...
+            </p>
+          )}
+        </div>
+
+        {isMyTurn && showValuePicker && !isRolling && gameState.diceValue === null && (
+          <div className="flex items-center gap-1.5 animate-fade-in">
+            <span className="text-dim text-[11px] mr-1">Declare a number:</span>
+            {[1, 2, 3, 4, 5, 6].map((v) => (
               <button
-                key={i}
-                onClick={() => isMyTurn && handleChooseDice(val)}
-                disabled={!isMyTurn}
-                className="transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+                key={v}
+                onClick={() => handleChooseValue(v)}
+                className="w-7 h-7 rounded-lg bg-raised border border-border text-bright text-xs font-mono
+                           hover:border-amber hover:text-amber transition-all"
               >
-                <DiceFace value={val} rolling={false} />
+                {v}
               </button>
             ))}
           </div>
-        ) : (
-          <DiceFace value={isRolling ? rollingFace : (gameState.diceValue ?? 1)} rolling={isRolling} />
-        )}
-
-        {isMyTurn && !isRolling && gameState.diceValue === null && !gameState.diceOptions && (
-          <button onClick={handleRoll} className="btn-primary">🎲 Roll Dice</button>
-        )}
-        {isMyTurn && isRolling && (
-          <p className="text-sub text-sm">Rolling…</p>
-        )}
-        {isMyTurn && !isRolling && gameState.diceOptions && (
-          <p className="text-sub text-sm">⚡ Pick which number to use</p>
-        )}
-        {isMyTurn && !isRolling && gameState.diceValue !== null && legalTokenIds.length > 0 && (
-          <p className="text-sub text-sm">Tap a blinking token to move it</p>
-        )}
-        {!isMyTurn && !gameState.winner && (
-          <p className="text-dim text-sm flex items-center gap-1">
-            {currentPlayer?.isBot && '🤖'} Waiting for {currentPlayer?.displayName}
-            {gameState.diceOptions ? ' to choose...' : '...'}
-          </p>
         )}
       </div>
 

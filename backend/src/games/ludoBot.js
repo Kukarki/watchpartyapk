@@ -41,11 +41,22 @@ export function pickBotMove(state, playerId) {
   return best;
 }
 
-// Power mode: choose between the two rolled values. A 6 (release a token /
-// extra turn) always wins; otherwise take the bigger number for more progress.
-export function pickBotDiceChoice(options) {
-  if (options.includes(6)) return 6;
-  return Math.max(...options);
+// Power mode: decide whether to spend one of the bot's 2 game-long dice
+// choices instead of rolling normally. Returns null to just roll, or a 1-6
+// value to declare. Simple heuristic: if the bot still has every token sitting
+// at home (nothing released yet), spend a choice to declare a 6 and get moving.
+export function pickBotDiceValue(state, playerId) {
+  const remaining = state.diceChoicesRemaining?.[playerId] || 0;
+  if (remaining <= 0) return null;
+
+  const myTokens = Object.values(state.tokens).filter((t) => {
+    const player = state.players.find((p) => p.userId === playerId);
+    return t.color === player?.color;
+  });
+  const allHome = myTokens.length > 0 && myTokens.every((t) => t.pos === 'home');
+  if (allHome) return 6;
+
+  return null;
 }
 
 export function makeBotPlayer(roomId, index) {
