@@ -12,6 +12,17 @@ const ICE_SERVERS = [
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
 
+// Deterministic per-name color — same hex values, same order, as
+// frontend/src/utils/userColor.js, so a person's color matches between the
+// website and this overlay. Duplicated (not imported) because this file is
+// a classic script, not an ES module.
+const USER_COLOR_PALETTE = ['#f5a623', '#3b82f6', '#22d3a0', '#ff4757', '#8896b0'];
+function getUserColor(name = '') {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return USER_COLOR_PALETTE[Math.abs(hash) % USER_COLOR_PALETTE.length];
+}
+
 // ── State ─────────────────────────────────────────────────
 const state = {
   user: null,
@@ -226,6 +237,7 @@ function appendMessage(msg, scroll = true) {
 
   const isSelf = msg.userId === state.user?.userId;
   const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const color = getUserColor(msg.displayName);
 
   const group = document.createElement('div');
   group.className = 'msg-group';
@@ -235,12 +247,12 @@ function appendMessage(msg, scroll = true) {
 
   group.innerHTML = `
     <div class="msg-meta ${isSelf ? 'justify-end' : ''}" style="${isSelf ? 'flex-direction:row-reverse' : ''}">
-      <img class="msg-avatar" src="${msg.avatar || ''}" onerror="this.style.display='none'" />
-      <span class="msg-author">${msg.displayName}</span>
+      <img class="msg-avatar" src="${msg.avatar || ''}" onerror="this.style.display='none'" style="${isSelf ? '' : `border-color:${color}`}" />
+      <span class="msg-author" style="${isSelf ? '' : `color:${color}`}">${msg.displayName}</span>
       <span class="msg-time">${time}</span>
     </div>
     <div class="msg-row ${isSelf ? 'self' : ''}">
-      <div class="msg-bubble ${isSelf ? 'self' : 'other'}">
+      <div class="msg-bubble ${isSelf ? 'self' : 'other'}" style="${isSelf ? '' : `border-left:3px solid ${color}`}">
         ${escapeHtml(msg.content)}
         <div class="msg-react-trigger">
           ${QUICK_REACTIONS.slice(0, 6).map((e) => `<span data-emoji="${e}" data-msg-id="${msg.id}">${e}</span>`).join('')}
@@ -378,10 +390,11 @@ function renderMembersStrip() {
   }
   membersStrip.innerHTML = state.members.map((m) => {
     const isSelf = m.userId === state.user?.userId;
+    const color = getUserColor(m.displayName);
     return `
       <div class="member-chip ${isSelf ? 'self' : ''}" title="${m.displayName}">
-        <img class="member-chip-avatar" src="${m.avatar || ''}" onerror="this.style.display='none'" />
-        <span class="member-chip-name">${m.displayName}</span>
+        <img class="member-chip-avatar" src="${m.avatar || ''}" onerror="this.style.display='none'" style="${isSelf ? '' : `border-color:${color}`}" />
+        <span class="member-chip-name" style="${isSelf ? '' : `color:${color}`}">${m.displayName}</span>
       </div>`;
   }).join('');
 }
@@ -393,12 +406,16 @@ function renderVoiceMembers() {
     voiceMembersList.innerHTML = `<p class="voice-empty">No one in voice yet</p>`;
     return;
   }
-  voiceMembersList.innerHTML = state.voiceMembers.map((m) => `
+  voiceMembersList.innerHTML = state.voiceMembers.map((m) => {
+    const isSelf = m.userId === state.user?.userId;
+    const color = getUserColor(m.displayName);
+    return `
     <div class="voice-member-row">
-      <img class="voice-member-avatar" src="${m.avatar || ''}" onerror="this.style.display='none'" />
-      <span class="voice-member-name">${m.displayName}${m.userId === state.user?.userId ? ' (you)' : ''}</span>
+      <img class="voice-member-avatar" src="${m.avatar || ''}" onerror="this.style.display='none'" style="${isSelf ? '' : `border-color:${color}`}" />
+      <span class="voice-member-name">${m.displayName}${isSelf ? ' (you)' : ''}</span>
       <span class="voice-member-muted">${m.isMuted ? '🔇' : '🎙️'}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── Voice actions ─────────────────────────────────────────

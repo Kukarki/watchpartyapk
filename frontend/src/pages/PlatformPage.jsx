@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useAuthStore } from '@/store/authStore.js';
 import { roomApi } from '@/api/room.api.js';
+import { userApi } from '@/api/user.api.js';
 import { PLATFORMS } from './HomePage.jsx';
 
 const API_BASE  = import.meta.env.VITE_API_URL || '/api/v1';
@@ -15,7 +16,7 @@ export default function PlatformPage() {
   const { platformId } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
-  const { token } = useAuthStore();
+  const { token, updateUser } = useAuthStore();
 
   const platform      = PLATFORMS.find((p) => p.id === platformId);
   const needsExtension = platform ? !EMBEDDABLE.includes(platform.id) : true;
@@ -69,6 +70,8 @@ export default function PlatformPage() {
     setLoading(true);
     setError('');
     try {
+      const { user: updated } = await userApi.updateProfile({ displayName: name });
+      updateUser({ displayName: updated.displayName, avatar: updated.avatar });
       setStep('ready');
     } catch {
       setError('Something went wrong');

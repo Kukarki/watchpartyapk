@@ -8,6 +8,18 @@ import { sendMessage, storageGet, storageSet, getRuntime } from '../utils/extens
 
 const app = document.getElementById('app');
 
+// Deterministic per-name color — same hex values, same order, as
+// frontend/src/utils/userColor.js and overlay.js, so a person's color
+// previewed here matches their actual chat color everywhere else. Not
+// imported from a shared file since this needs to stay in sync with
+// overlay.js's classic-script copy anyway (see that file's comment).
+const USER_COLOR_PALETTE = ['#f5a623', '#3b82f6', '#22d3a0', '#ff4757', '#8896b0'];
+function getUserColor(name = '') {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return USER_COLOR_PALETTE[Math.abs(hash) % USER_COLOR_PALETTE.length];
+}
+
 // ── State ─────────────────────────────────────────────────
 let state = {
   view: 'loading',  // loading | login | lobby | room
@@ -81,7 +93,12 @@ function renderLogin() {
     <div class="section fade-in">
       <div class="section-label">Get Started</div>
       <div class="input-group">
-        <input class="input" id="displayName" placeholder="Your display name" maxlength="30" />
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="nameColorDot" title="Your chat color"
+                style="width:14px;height:14px;border-radius:50%;background:var(--border);
+                       flex-shrink:0;transition:background 0.15s;"></span>
+          <input class="input" id="displayName" placeholder="Your display name" maxlength="30" style="flex:1;" />
+        </div>
         ${state.error ? `<div class="status-msg error">${state.error}</div>` : ''}
         <button class="btn btn-primary" id="loginBtn">
           ${state.loading ? '<span class="spinner"></span> Joining...' : 'Continue →'}
@@ -100,6 +117,12 @@ function renderLogin() {
 }
 
 function bindLogin() {
+  document.getElementById('displayName').addEventListener('input', (e) => {
+    const dot = document.getElementById('nameColorDot');
+    const name = e.target.value.trim();
+    dot.style.background = name ? getUserColor(name) : 'var(--border)';
+  });
+
   document.getElementById('loginBtn').addEventListener('click', async () => {
     const name = document.getElementById('displayName').value.trim();
     const server = document.getElementById('serverUrl').value.trim();

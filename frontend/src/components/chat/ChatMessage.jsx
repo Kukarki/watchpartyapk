@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Avatar from '@/components/ui/Avatar.jsx';
 import Emoji from '@/components/ui/Emoji.jsx';
+import { getUserColorHex } from '@/utils/userColor.js';
 
 const EMOJI_CATEGORIES = [
   { label: '⚡', title: 'Quick',  emojis: ['👍','👎','❤️','😂','😮','😢','😡','🙏'] },
@@ -111,7 +112,12 @@ export default function ChatMessage({ message, isSelf, isGrouped, onReact, curre
         <div className={`max-w-[80%] flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
           {!isSelf && !isGrouped && (
             <div className="mb-1 flex items-center gap-2 px-1">
-              <span className="text-[11px] font-medium text-sub">{message.displayName}</span>
+              <span
+                className="text-[11px] font-medium"
+                style={{ color: getUserColorHex(message.displayName) }}
+              >
+                {message.displayName}
+              </span>
               <span className="text-[10px] text-dim">{timeLabel}</span>
             </div>
           )}
@@ -141,8 +147,9 @@ export default function ChatMessage({ message, isSelf, isGrouped, onReact, curre
                            break-words transition-colors
                            ${isSelf
                              ? 'bg-amber text-void font-medium rounded-2xl rounded-br-sm'
-                             : 'bg-raised text-bright border border-border rounded-2xl rounded-bl-sm'
+                             : 'bg-raised text-bright border border-border border-l-[3px] rounded-2xl rounded-bl-sm'
                            }`}
+              style={!isSelf ? { borderLeftColor: getUserColorHex(message.displayName) } : undefined}
             >
               {message.content}
             </div>

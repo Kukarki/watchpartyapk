@@ -1,3 +1,5 @@
+import { getUserColorHex, getUserColorTint } from '@/utils/userColor.js';
+
 const SIZE_MAP = {
   xs: 'w-6 h-6 text-[10px]',
   sm: 'w-8 h-8 text-xs',
@@ -14,29 +16,17 @@ function getInitials(name = '') {
     .toUpperCase();
 }
 
-function getColor(name = '') {
-  const colors = [
-    'bg-amber/20 text-amber border-amber/30',
-    'bg-info/20 text-info border-info/30',
-    'bg-online/20 text-online border-online/30',
-    'bg-danger/20 text-danger border-danger/30',
-    'bg-sub/20 text-sub border-sub/30',
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
-
 export default function Avatar({ src, name = '', size = 'md', className = '' }) {
   const sizeClass = SIZE_MAP[size] || SIZE_MAP.md;
-  const colorClass = getColor(name);
+  const colorHex = getUserColorHex(name);
 
   if (src) {
     return (
       <img
         src={src}
         alt={name}
-        className={`${sizeClass} rounded-full object-cover border border-border ${className}`}
+        className={`${sizeClass} rounded-full object-cover border-2 ${className}`}
+        style={{ borderColor: colorHex }}
         onError={(e) => { e.target.style.display = 'none'; }}
       />
     );
@@ -44,8 +34,9 @@ export default function Avatar({ src, name = '', size = 'md', className = '' }) 
 
   return (
     <div
-      className={`${sizeClass} rounded-full border flex items-center justify-center
-                   font-display font-semibold shrink-0 ${colorClass} ${className}`}
+      className={`${sizeClass} rounded-full border-2 flex items-center justify-center
+                   font-display font-semibold shrink-0 ${getUserColorTint(name)} ${className}`}
+      style={{ borderColor: colorHex }}
       title={name}
     >
       {getInitials(name)}

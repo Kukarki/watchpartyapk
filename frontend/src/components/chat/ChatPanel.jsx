@@ -6,6 +6,7 @@ import ChatMessage from './ChatMessage.jsx';
 import ChatInput from './ChatInput.jsx';
 import TypingIndicator from './TypingIndicator.jsx';
 import Avatar from '@/components/ui/Avatar.jsx';
+import { getUserColorHex } from '@/utils/userColor.js';
 
 export default function ChatPanel() {
   const { messages, typingList, submitMessage, reactToMessage, handleTypingStart } = useChat();
@@ -55,8 +56,10 @@ export default function ChatPanel() {
                       <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5
                                         rounded-full bg-online border border-surface" />
                     </div>
-                    <span className={`text-xs font-medium
-                      ${isSelf ? 'text-amber' : 'text-sub'}`}>
+                    <span
+                      className={`text-xs font-medium ${isSelf ? 'text-amber' : ''}`}
+                      style={!isSelf ? { color: getUserColorHex(m.displayName) } : undefined}
+                    >
                       {isSelf ? `${m.displayName} (you)` : m.displayName}
                     </span>
                   </div>

@@ -1,7 +1,7 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-
-const STEPS = ['Pick a platform', 'Create a room', 'Invite friends', 'Watch together'];
+import { PLATFORMS } from './HomePage.jsx';
+import { EXTENSION_REPO_URL, HOW_IT_WORKS_STEPS } from '@/constants.js';
 
 const FEATURES = [
   { icon: '⚡', title: 'Frame-perfect sync', desc: 'Play, pause and seek stay in lock-step for everyone in the room.' },
@@ -112,16 +112,22 @@ export default function LandingPage() {
         </div>
 
         {/* How it works */}
-        <div className="flex flex-wrap justify-center items-center gap-2 text-xs
-                         text-dim font-mono mb-16 animate-fade-in"
-             style={{ animationDelay: '0.2s' }}>
-          {STEPS.map((step, i) => (
-            <span key={step} className="flex items-center gap-2">
-              <span className="text-amber font-bold">{i + 1}</span>
-              <span>{step}</span>
-              {i < STEPS.length - 1 && <span className="text-border">→</span>}
-            </span>
-          ))}
+        <div className="w-full max-w-3xl mb-16 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <h2 className="font-display font-bold text-lg text-bright text-center mb-5">How it works</h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {HOW_IT_WORKS_STEPS.map(({ n, title, desc }) => (
+              <div key={n} className="card p-5 text-left flex gap-3 hover:border-amber/30 transition-colors duration-300">
+                <span className="shrink-0 w-8 h-8 rounded-lg bg-amber/10 border border-amber/20
+                                 flex items-center justify-center font-display font-bold text-amber">
+                  {n}
+                </span>
+                <div>
+                  <h3 className="font-display font-semibold text-bright text-sm mb-0.5">{title}</h3>
+                  <p className="text-dim text-xs leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Feature cards */}
@@ -136,8 +142,58 @@ export default function LandingPage() {
           ))}
         </div>
 
+        {/* Install the extension */}
+        <div className="w-full max-w-2xl mb-16 animate-slide-up" style={{ animationDelay: '0.28s' }}>
+          <div className="card p-6 sm:p-8 text-center">
+            <div className="text-2xl mb-3">🧩</div>
+            <h2 className="font-display font-bold text-lg text-bright mb-2">Install the WatchParty extension</h2>
+            <p className="text-sub text-sm leading-relaxed max-w-md mx-auto mb-5">
+              Netflix, Prime Video and other DRM-protected platforms need a lightweight
+              browser extension to keep playback in sync. You only install it once —
+              YouTube needs no extension at all.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <a
+                href={EXTENSION_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary text-sm"
+              >
+                Get the Extension →
+              </a>
+              <Link to="/how-to" className="btn-ghost text-sm border border-border">
+                See full setup guide →
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Supported platforms */}
+        <div className="w-full max-w-4xl mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <p className="text-dim text-xs font-mono uppercase tracking-widest text-center mb-5">
+            Works with
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-4">
+            {PLATFORMS.map((p) => (
+              <div key={p.id} className="h-6 flex items-center opacity-70 hover:opacity-100 transition-opacity">
+                {p.logo ? (
+                  <img
+                    src={p.logo}
+                    alt={p.name}
+                    className="h-full w-auto object-contain max-w-[100px]"
+                    style={{ filter: p.invertLogo ? 'invert(1) brightness(0.95)' : 'brightness(0.95)' }}
+                    onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'font-display font-semibold text-sub text-sm', textContent: p.name })); }}
+                  />
+                ) : (
+                  <span className="font-display font-semibold text-sub text-sm">{p.name}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Final CTA */}
-        <div className="text-center animate-slide-up" style={{ animationDelay: '0.3s' }}>
+        <div className="text-center animate-slide-up" style={{ animationDelay: '0.35s' }}>
           <button onClick={() => navigate('/login')} className="btn-primary text-base px-8 py-3">
             Start a Watch Party →
           </button>
