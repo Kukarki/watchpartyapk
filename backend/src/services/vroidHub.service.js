@@ -155,7 +155,9 @@ class VroidHubService {
     }
     const data = await res.json();
     // CharacterModelSerializer (confirmed shape): id, name, is_downloadable,
-    // portrait_image, full_body_image, latest_character_model_version, ...
+    // portrait_image: { original, w600, w300, sq600, sq300, sq150 } (each an
+    // ImageSerializer { url, url2x, width, height } — no direct .url on
+    // portrait_image itself). sq150 is the right size for a picker thumbnail.
     // Only list models VRoid Hub actually lets us download — the others
     // can't become a WatchParty avatar at all.
     const models = (data?.data || [])
@@ -163,7 +165,7 @@ class VroidHubService {
       .map((m) => ({
         id: m.id,
         name: m.name || 'Untitled',
-        thumbnailUrl: m.portrait_image?.url || m.portrait_image?.original?.url || null,
+        thumbnailUrl: m.portrait_image?.sq150?.url || m.portrait_image?.original?.url || null,
       }));
     return { connected: true, models };
   }
