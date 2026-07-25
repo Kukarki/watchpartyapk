@@ -154,11 +154,17 @@ class VroidHubService {
       throw httpError(502, 'Could not load your VRoid Hub models');
     }
     const data = await res.json();
-    const models = (data?.data || []).map((m) => ({
-      id: m.id,
-      name: m.character_model_name || m.name || 'Untitled',
-      thumbnailUrl: m.portrait_image?.url || m.thumbnail_url || null,
-    }));
+    // CharacterModelSerializer (confirmed shape): id, name, is_downloadable,
+    // portrait_image, full_body_image, latest_character_model_version, ...
+    // Only list models VRoid Hub actually lets us download — the others
+    // can't become a WatchParty avatar at all.
+    const models = (data?.data || [])
+      .filter((m) => m.is_downloadable)
+      .map((m) => ({
+        id: m.id,
+        name: m.name || 'Untitled',
+        thumbnailUrl: m.portrait_image?.url || m.portrait_image?.original?.url || null,
+      }));
     return { connected: true, models };
   }
 
