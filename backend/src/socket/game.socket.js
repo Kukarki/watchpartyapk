@@ -27,7 +27,17 @@ async function maybeRunBotTurn(io, roomId, gameType, state, depth = 0) {
     let result = await gameService.applyAction(roomId, gameType, { type: 'roll_dice' }, player.userId);
     io.to(roomId).emit('game:state', result);
 
-    let { state: next, events } = result;
+    let { state: next } = result;
+
+    // Power mode: roll_dice only produces two options; the bot must choose one.
+    if (next.diceOptions && typeof module.pickBotDiceChoice === 'function') {
+      await delay(500 + Math.random() * 300);
+      const chosen = module.pickBotDiceChoice(next.diceOptions);
+      result = await gameService.applyAction(roomId, gameType, { type: 'choose_dice', value: chosen }, player.userId);
+      io.to(roomId).emit('game:state', result);
+      next = result.state;
+    }
+
     if (next.diceValue !== null && next.legalTokenIds?.length > 0) {
       await delay(1000 + Math.random() * 600);
       const tokenId = module.pickBotMove(next, player.userId);
@@ -47,13 +57,13 @@ async function maybeRunBotTurn(io, roomId, gameType, state, depth = 0) {
 export function registerGameHandlers(io, socket) {
   const { userId } = socket.user;
 
-  // ─── game:start — host-only, deals current room members (+ optional bots) into the game ───
-  socket.on('game:start', async ({ roomId, botCount = 0 } = {}) => {
+  // ─── game:start — any current room member (2+ players) can start; deals
+  // current room members (+ optional bots) into the game ───
+  socket.on('game:start', async ({ roomId, botCount = 0, mode = 'classic' } = {}) => {
     if (!inRoom(socket, roomId)) return;
     try {
       const room = await roomService.getRoomWithState(roomId);
       if (!room) return socket.emit('game:error', { message: 'Room not found' });
-      if (room.hostId !== userId) return socket.emit('game:error', { message: 'Only the host can start the game' });
       if (!room.gameType) return socket.emit('game:error', { message: 'This room has no game configured' });
 
       const module = GAME_MODULES[room.gameType];
@@ -72,7 +82,8 @@ export function registerGameHandlers(io, socket) {
       const players = members.map((m) => ({ userId: m.userId, displayName: m.displayName, isBot: false }));
       for (let i = 1; i <= requestedBots; i++) players.push(makeBotPlayer(roomId, i));
 
-      const state = await gameService.createGame(roomId, room.gameType, players);
+      const resolvedMode = mode === 'power' ? 'power' : 'classic';
+      const state = await gameService.createGame(roomId, room.gameType, players, { mode: resolvedMode });
 
       io.to(roomId).emit('game:state', { state, events: [{ type: 'game_started' }] });
       maybeRunBotTurn(io, roomId, room.gameType, state);

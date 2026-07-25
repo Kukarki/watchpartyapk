@@ -21,22 +21,30 @@ function globalSquare(color, pos) {
   return (COLOR_START_OFFSET[color] + pos) % 52;
 }
 
-function createInitialState(players) {
+// mode: 'classic' (default) — traditional rules only.
+// 'power' adds two things on top of the same traditional rules, never
+// replacing them: (1) each roll offers 2 dice values, player picks one,
+// and (2) a token that just captured is shielded from capture until it
+// next moves. Safe/star squares work identically in both modes.
+function createInitialState(players, opts = {}) {
   if (players.length < 2 || players.length > 4) {
     throw new Error('Ludo needs 2-4 players');
   }
+  const mode = opts.mode === 'power' ? 'power' : 'classic';
   const assigned = players.map((p, i) => ({ ...p, color: COLORS[i] }));
   const tokens = {};
   for (const p of assigned) {
     for (let i = 0; i < 4; i++) {
-      tokens[`${p.color}-${i}`] = { color: p.color, pos: 'home' };
+      tokens[`${p.color}-${i}`] = { color: p.color, pos: 'home', shielded: false };
     }
   }
   return {
+    mode,
     players: assigned,
     tokens,
     currentPlayerIndex: 0,
     diceValue: null,
+    diceOptions: null, // power mode: [a, b] rolled, awaiting the player's choice
     consecutiveSixes: 0,
     legalTokenIds: [],
     winner: null,
@@ -62,6 +70,37 @@ function advanceTurn(state) {
   return { currentPlayerIndex: (state.currentPlayerIndex + 1) % state.players.length };
 }
 
+// Shared by both the classic single-roll and power-mode chosen-roll paths —
+// three-sixes forfeit / no-legal-move auto-pass / normal roll all resolve
+// identically once a single roll value has been settled on.
+function resolveRoll(state, player, playerId, roll) {
+  const consecutiveSixes = roll === 6 ? state.consecutiveSixes + 1 : 0;
+
+  // Three 6s in a row forfeits the turn entirely (no move) — traditional rule.
+  if (consecutiveSixes === 3) {
+    const next = advanceTurn(state);
+    return {
+      state: { ...state, ...next, diceValue: null, diceOptions: null, consecutiveSixes: 0, legalTokenIds: [] },
+      events: [{ type: 'forfeit_three_sixes', playerId, roll }],
+    };
+  }
+
+  const legalTokenIds = computeLegalMoves(state, player.color, roll);
+  if (legalTokenIds.length === 0) {
+    // Nothing this player can legally do with this roll — auto-pass.
+    const next = advanceTurn(state);
+    return {
+      state: { ...state, ...next, diceValue: null, diceOptions: null, consecutiveSixes: 0, legalTokenIds: [] },
+      events: [{ type: 'no_legal_moves', playerId, roll }],
+    };
+  }
+
+  return {
+    state: { ...state, diceValue: roll, diceOptions: null, consecutiveSixes, legalTokenIds },
+    events: [{ type: 'rolled', playerId, roll }],
+  };
+}
+
 function applyAction(state, action, playerId) {
   if (state.winner) throw new Error('This game is already over');
 
@@ -69,34 +108,28 @@ function applyAction(state, action, playerId) {
   if (!player || player.userId !== playerId) throw new Error("It's not your turn");
 
   if (action.type === 'roll_dice') {
-    if (state.diceValue !== null) throw new Error('Move a token before rolling again');
+    if (state.diceValue !== null || state.diceOptions) throw new Error('Move a token before rolling again');
+
+    if (state.mode === 'power') {
+      const a = 1 + Math.floor(Math.random() * 6);
+      const b = 1 + Math.floor(Math.random() * 6);
+      return {
+        state: { ...state, diceOptions: [a, b] },
+        events: [{ type: 'rolled_options', playerId, options: [a, b] }],
+      };
+    }
 
     const roll = 1 + Math.floor(Math.random() * 6);
-    const consecutiveSixes = roll === 6 ? state.consecutiveSixes + 1 : 0;
+    return resolveRoll(state, player, playerId, roll);
+  }
 
-    // Three 6s in a row forfeits the turn entirely (no move) — traditional rule.
-    if (consecutiveSixes === 3) {
-      const next = advanceTurn(state);
-      return {
-        state: { ...state, ...next, diceValue: null, consecutiveSixes: 0, legalTokenIds: [] },
-        events: [{ type: 'forfeit_three_sixes', playerId, roll }],
-      };
-    }
-
-    const legalTokenIds = computeLegalMoves(state, player.color, roll);
-    if (legalTokenIds.length === 0) {
-      // Nothing this player can legally do with this roll — auto-pass.
-      const next = advanceTurn(state);
-      return {
-        state: { ...state, ...next, diceValue: null, consecutiveSixes: 0, legalTokenIds: [] },
-        events: [{ type: 'no_legal_moves', playerId, roll }],
-      };
-    }
-
-    return {
-      state: { ...state, diceValue: roll, consecutiveSixes, legalTokenIds },
-      events: [{ type: 'rolled', playerId, roll }],
-    };
+  // Power mode only — pick which of the two rolled_options values to use.
+  if (action.type === 'choose_dice') {
+    if (state.mode !== 'power') throw new Error('Not available in this mode');
+    if (!state.diceOptions) throw new Error('Roll the dice first');
+    const { value } = action;
+    if (!state.diceOptions.includes(value)) throw new Error('Pick one of the rolled options');
+    return resolveRoll(state, player, playerId, value);
   }
 
   if (action.type === 'move_token') {
@@ -111,10 +144,13 @@ function applyAction(state, action, playerId) {
     const newPos = token.pos === 'home' ? 0 : token.pos + state.diceValue;
 
     if (newPos === 57) {
-      newTokens[tokenId] = { ...token, pos: 'finished' };
+      newTokens[tokenId] = { ...token, pos: 'finished', shielded: false };
       events.push({ type: 'token_finished', playerId, tokenId });
     } else {
-      newTokens[tokenId] = { ...token, pos: newPos };
+      // Moving clears this token's own shield (power mode: "protected until
+      // it next moves").
+      newTokens[tokenId] = { ...token, pos: newPos, shielded: false };
+      let capturedSomethingNow = false;
 
       // Capture check — only applies on the shared outer loop.
       if (newPos <= 50) {
@@ -123,12 +159,19 @@ function applyAction(state, action, playerId) {
           for (const [otherId, otherToken] of Object.entries(newTokens)) {
             if (otherId === tokenId || otherToken.color === token.color) continue;
             if (typeof otherToken.pos !== 'number' || otherToken.pos > 50) continue;
+            if (otherToken.shielded) continue; // power mode: shielded tokens can't be captured
             if (globalSquare(otherToken.color, otherToken.pos) === landedGlobal) {
-              newTokens[otherId] = { ...otherToken, pos: 'home' };
+              newTokens[otherId] = { ...otherToken, pos: 'home', shielded: false };
               events.push({ type: 'captured', playerId, tokenId, capturedTokenId: otherId });
+              capturedSomethingNow = true;
             }
           }
         }
+      }
+
+      // Power mode: the capturing token is shielded until it next moves.
+      if (capturedSomethingNow && state.mode === 'power') {
+        newTokens[tokenId] = { ...newTokens[tokenId], shielded: true };
       }
     }
 
@@ -160,4 +203,4 @@ function applyAction(state, action, playerId) {
   throw new Error(`Unknown action type: ${action.type}`);
 }
 
-export const ludoGame = { createInitialState, applyAction };
+export const ludoGame = { createInitialState, applyAction, meta: { minPlayers: 2, maxPlayers: 4 } };

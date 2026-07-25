@@ -41,6 +41,13 @@ export function pickBotMove(state, playerId) {
   return best;
 }
 
+// Power mode: choose between the two rolled values. A 6 (release a token /
+// extra turn) always wins; otherwise take the bigger number for more progress.
+export function pickBotDiceChoice(options) {
+  if (options.includes(6)) return 6;
+  return Math.max(...options);
+}
+
 export function makeBotPlayer(roomId, index) {
   return { userId: `bot-${roomId}-${index}`, displayName: `Bot ${index}`, isBot: true };
 }

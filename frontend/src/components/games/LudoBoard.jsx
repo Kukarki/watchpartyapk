@@ -34,13 +34,14 @@ function DiceFace({ value, rolling }) {
 }
 
 export default function LudoBoard({ isSolo = false }) {
-  const { gameState, room, members } = useRoomStore();
+  const { gameState, members } = useRoomStore();
   const { startGame, sendGameAction } = useRoomActions();
   const { user } = useAuth();
 
   // Solo games default to a full table of bots — the whole point of "solo"
   // is skipping the wait for a lobby to fill up.
   const [botCount, setBotCount] = useState(isSolo ? 3 : 0);
+  const [mode, setMode] = useState('classic');
   const [isRolling, setIsRolling] = useState(false);
   const [rollingFace, setRollingFace] = useState(1);
   const rollIntervalRef = useRef(null);
@@ -129,7 +130,6 @@ export default function LudoBoard({ isSolo = false }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.tokens]);
 
-  const isHost = room?.hostId === user?.userId;
   const currentPlayer = gameState?.players?.[gameState.currentPlayerIndex];
   const isMyTurn = !!currentPlayer && currentPlayer.userId === user?.userId;
   const legalTokenIds = gameState?.legalTokenIds || [];
@@ -147,6 +147,7 @@ export default function LudoBoard({ isSolo = false }) {
     }, ROLL_ANIM_MS);
   };
   const handleMove = (tokenId) => sendGameAction({ type: 'move_token', tokenId });
+  const handleChooseDice = (value) => sendGameAction({ type: 'choose_dice', value });
 
   if (!gameState) {
     const maxBots = Math.max(0, 4 - members.length);
@@ -166,13 +167,40 @@ export default function LudoBoard({ isSolo = false }) {
             </p>
           )}
 
-          {isHost && maxBots > 0 && (
+          {/* Any player in the room can configure and start — not just the host */}
+          {!isSolo && maxBots > 0 && (
             <div className="flex items-center justify-center gap-3">
-              <span className="text-dim text-xs">🤖 {isSolo ? 'Bots' : 'Add bots'}</span>
+              <span className="text-dim text-xs">🤖 Bots</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setBotCount((c) => Math.max(0, c - 1))}
                   disabled={botCount === 0}
+                  className="w-7 h-7 rounded-lg bg-raised border border-border text-bright
+                             disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  −
+                </button>
+                <span className="text-bright text-sm font-mono w-4 text-center">
+                  {botCount === 0 ? 'None' : botCount}
+                </span>
+                <button
+                  onClick={() => setBotCount((c) => Math.min(maxBots, c + 1))}
+                  disabled={botCount >= maxBots}
+                  className="w-7 h-7 rounded-lg bg-raised border border-border text-bright
+                             disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+          {isSolo && (
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-dim text-xs">🤖 Bots</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setBotCount((c) => Math.max(1, c - 1))}
+                  disabled={botCount <= 1}
                   className="w-7 h-7 rounded-lg bg-raised border border-border text-bright
                              disabled:opacity-30 disabled:cursor-not-allowed"
                 >
@@ -191,18 +219,40 @@ export default function LudoBoard({ isSolo = false }) {
             </div>
           )}
 
-          {isHost ? (
+          {/* Mode choice */}
+          <div className="flex items-center justify-center gap-2">
             <button
-              onClick={() => startGame({ botCount })}
-              disabled={!canStart}
-              className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => setMode('classic')}
+              className={`px-3 py-1.5 rounded-lg text-xs border transition-all
+                ${mode === 'classic' ? 'border-amber text-amber bg-amber/10' : 'border-border text-dim hover:text-sub'}`}
             >
-              {totalSeats < 2
-                ? (isSolo ? 'Add at least 1 bot to start' : (members.length === 1 ? 'Add a bot to play solo, or wait for others' : 'Waiting for more players...'))
-                : (isSolo ? 'Start Solo Game →' : 'Start Game →')}
+              🎲 Classic
             </button>
-          ) : (
-            <p className="text-dim text-xs">Waiting for the host to start the game...</p>
+            <button
+              onClick={() => setMode('power')}
+              className={`px-3 py-1.5 rounded-lg text-xs border transition-all
+                ${mode === 'power' ? 'border-amber text-amber bg-amber/10' : 'border-border text-dim hover:text-sub'}`}
+            >
+              ⚡ Power Play
+            </button>
+          </div>
+          {mode === 'power' && (
+            <p className="text-dim text-[11px] max-w-xs mx-auto leading-relaxed">
+              Roll 2 dice and pick which to use, and a token that just captured is shielded until it moves again.
+            </p>
+          )}
+
+          <button
+            onClick={() => startGame({ botCount, mode })}
+            disabled={!canStart}
+            className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {totalSeats < 2
+              ? (isSolo ? 'Add at least 1 bot to start' : (members.length === 1 ? 'Add a bot to play solo, or wait for others' : 'Waiting for more players...'))
+              : (isSolo ? 'Start Solo Game →' : 'Start Game →')}
+          </button>
+          {!isSolo && members.length >= 2 && (
+            <p className="text-dim text-[11px]">Anyone in the room can start the game</p>
           )}
         </div>
       </div>
@@ -214,21 +264,49 @@ export default function LudoBoard({ isSolo = false }) {
 
   return (
     <div className="relative w-full h-full flex flex-col items-center p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden">
+      {gameState.mode === 'power' && (
+        <span className="shrink-0 text-[10px] font-mono uppercase tracking-widest text-amber
+                          bg-amber/10 border border-amber/20 rounded-full px-2.5 py-0.5">
+          ⚡ Power Play
+        </span>
+      )}
+
       {/* Dice + status — kept above the board so it's never scrolled out of view */}
       <div className="flex items-center gap-4 shrink-0">
-        <DiceFace value={isRolling ? rollingFace : (gameState.diceValue ?? 1)} rolling={isRolling} />
-        {isMyTurn && !isRolling && gameState.diceValue === null && (
+        {gameState.diceOptions && !isRolling ? (
+          // Power Play: two rolled options, pick one to use
+          <div className="flex items-center gap-2">
+            {gameState.diceOptions.map((val, i) => (
+              <button
+                key={i}
+                onClick={() => isMyTurn && handleChooseDice(val)}
+                disabled={!isMyTurn}
+                className="transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+              >
+                <DiceFace value={val} rolling={false} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <DiceFace value={isRolling ? rollingFace : (gameState.diceValue ?? 1)} rolling={isRolling} />
+        )}
+
+        {isMyTurn && !isRolling && gameState.diceValue === null && !gameState.diceOptions && (
           <button onClick={handleRoll} className="btn-primary">🎲 Roll Dice</button>
         )}
         {isMyTurn && isRolling && (
           <p className="text-sub text-sm">Rolling…</p>
+        )}
+        {isMyTurn && !isRolling && gameState.diceOptions && (
+          <p className="text-sub text-sm">⚡ Pick which number to use</p>
         )}
         {isMyTurn && !isRolling && gameState.diceValue !== null && legalTokenIds.length > 0 && (
           <p className="text-sub text-sm">Tap a blinking token to move it</p>
         )}
         {!isMyTurn && !gameState.winner && (
           <p className="text-dim text-sm flex items-center gap-1">
-            {currentPlayer?.isBot && '🤖'} Waiting for {currentPlayer?.displayName}...
+            {currentPlayer?.isBot && '🤖'} Waiting for {currentPlayer?.displayName}
+            {gameState.diceOptions ? ' to choose...' : '...'}
           </p>
         )}
       </div>
@@ -288,18 +366,24 @@ export default function LudoBoard({ isSolo = false }) {
             const clickable = isMyTurn && !isRolling && legalTokenIds.includes(tokenId);
             const atHome = token.pos === 'home';
             return (
-              <circle
-                key={tokenId}
-                cx={c + 0.5}
-                cy={r + 0.5}
-                r={atHome ? 0.36 : 0.32}
-                fill={COLOR_HEX[token.color]}
-                stroke={clickable ? '#eef2fc' : '#0a0c12'}
-                strokeWidth={clickable ? 0.08 : 0.05}
-                style={{ cursor: clickable ? 'pointer' : 'default', transition: 'cx 0.25s ease, cy 0.25s ease' }}
-                className={clickable ? 'ludo-token-blink' : ''}
-                onClick={() => clickable && handleMove(tokenId)}
-              />
+              <g key={tokenId}>
+                {token.shielded && (
+                  <circle cx={c + 0.5} cy={r + 0.5} r={0.48}
+                          fill="none" stroke="#f5a623" strokeWidth={0.05} strokeDasharray="0.1 0.05"
+                          style={{ transition: 'cx 0.25s ease, cy 0.25s ease' }} />
+                )}
+                <circle
+                  cx={c + 0.5}
+                  cy={r + 0.5}
+                  r={atHome ? 0.36 : 0.32}
+                  fill={COLOR_HEX[token.color]}
+                  stroke={clickable ? '#eef2fc' : '#0a0c12'}
+                  strokeWidth={clickable ? 0.08 : 0.05}
+                  style={{ cursor: clickable ? 'pointer' : 'default', transition: 'cx 0.25s ease, cy 0.25s ease' }}
+                  className={clickable ? 'ludo-token-blink' : ''}
+                  onClick={() => clickable && handleMove(tokenId)}
+                />
+              </g>
             );
           })}
         </svg>
@@ -314,11 +398,9 @@ export default function LudoBoard({ isSolo = false }) {
               {gameState.players.find((p) => p.userId === gameState.winner)?.isBot && '🤖'}
               {gameState.players.find((p) => p.userId === gameState.winner)?.displayName} won!
             </p>
-            {isHost && (
-              <button onClick={() => startGame({ botCount })} className="btn-primary">
-                Play Again
-              </button>
-            )}
+            <button onClick={() => startGame({ botCount, mode })} className="btn-primary">
+              Play Again
+            </button>
           </div>
         </div>
       )}
