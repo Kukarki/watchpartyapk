@@ -119,6 +119,20 @@ export default function VideoCall() {
     setIncomingName(null);
   }, [leaveCall, isBlurOn, toggleBlur, localStream, updateVideoTrack, stopFilter]);
 
+  // If everyone else leaves, end the call for us too instead of leaving us
+  // sitting alone in an "active" call indefinitely.
+  const hadRemotePeersRef = useRef(false);
+  useEffect(() => {
+    const count = Object.keys(remoteStreams).length;
+    if (count > 0) {
+      hadRemotePeersRef.current = true;
+    } else if (hadRemotePeersRef.current && isInCall) {
+      hadRemotePeersRef.current = false;
+      toast('Call ended — everyone else left', { icon: '📵' });
+      handleLeave();
+    }
+  }, [remoteStreams, isInCall, handleLeave]);
+
   const handleFilterChange = useCallback((name) => {
     if (name === 'none') {
       stopFilter();
