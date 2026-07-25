@@ -10,7 +10,6 @@ import HubHomeRaw from '../../../wp-home/HubHome';
 const HubHome = HubHomeRaw as React.ComponentType<any>;
 import YouTubePicker from '../../../youtube/YouTubePicker';
 import { useAuthStore } from '@/stores/auth.store';
-import { useAvatarStore } from '../../../avatar';
 import { useFriendStore } from '@/stores/friend.store';
 import { useRoomStore } from '@/stores/room.store';
 import { roomsApi } from '@/services/api';
@@ -18,7 +17,6 @@ import { hapticSuccess, hapticError } from '@/services/haptics';
 
 export default function HomeTab() {
   const { user } = useAuthStore();
-  const { progression } = useAvatarStore();
   const { friends, onlineFriendIds } = useFriendStore();
   const room = useRoomStore((s) => s.currentRoom);
   const setRoom = useRoomStore((s) => s.setRoom);
@@ -91,7 +89,6 @@ export default function HomeTab() {
     <>
       <HubHome
         name={user?.username ?? 'there'}
-        progression={progression}
         live={[] as any[]}
         friendsOnline={friendsOnline}
         resume={room ? { title: room.name, subtitle: 'Resume your room', live: false } : undefined}

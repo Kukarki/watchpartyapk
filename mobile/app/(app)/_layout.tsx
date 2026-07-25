@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useFriendStore } from '@/stores/friend.store';
 import { socketService } from '@/services/socket';
 import { COLORS, SOCKET_EVENTS } from '@/constants';
-import { configureAvatarApi, AvatarApi, useAvatarStore } from '../../avatar';
+// TODO: Ready Player Me avatar creator + inventory screens go here
+// (backend is already live at /api/v1/avatar-system, see backend/src/avatar/).
 
 export default function AppLayout() {
   const { isAuthenticated, isLoading, user } = useAuthStore();
@@ -16,19 +16,6 @@ export default function AppLayout() {
       router.replace('/(auth)/login');
     }
   }, [isLoading, isAuthenticated]);
-
-  useEffect(() => {
-    configureAvatarApi({
-      baseUrl: process.env.EXPO_PUBLIC_AVATAR_URL ?? 'https://sandipwatch7.dedyn.io/api/v1/avatar-system',
-      getToken: async () => SecureStore.getItemAsync('auth_token'),
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-    useAvatarStore.getState().init();
-    AvatarApi.claimLogin().catch(() => {});
-  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -78,11 +65,6 @@ export default function AppLayout() {
           animation: 'slide_from_bottom',
         }}
       />
-
-      {/* Avatar screens */}
-      <Stack.Screen name="avatar-studio" options={{ title: 'Avatar Studio', headerShown: false }} />
-      <Stack.Screen name="avatar-inventory" options={{ headerShown: false }} />
-      <Stack.Screen name="avatar-shop" options={{ headerShown: false }} />
 
       {/* Game screen: slides up full-screen */}
       <Stack.Screen
