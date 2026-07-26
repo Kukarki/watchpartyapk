@@ -61,6 +61,23 @@ describe('ludoEngine', () => {
     expect(events.some((e) => e.type === 'captured' && e.capturedTokenId === 'yellow-0')).toBe(true);
   });
 
+  it('grants an extra turn on a capture, even without rolling a 6', () => {
+    // Same capture setup as above, but with a non-six roll (2).
+    const base = twoPlayerState();
+    let state = {
+      ...base,
+      tokens: {
+        ...base.tokens,
+        'red-0': { color: 'red', pos: 26 },
+        'yellow-0': { color: 'yellow', pos: 2 },
+      },
+    };
+    ({ state } = applyRoll(state, 2));
+    const { state: afterMove, events } = applyMoveToken(state, 'red-0');
+    expect(afterMove.currentSeatIndex).toBe(0); // still red's turn
+    expect(events.some((e) => e.type === 'extra_turn')).toBe(true);
+  });
+
   it('does not capture on a safe/star square', () => {
     // global 34 is a safe square. yellow (offset 26) at relative pos 8 -> global 34.
     // red (offset 0) moving to global 34 -> relative pos 34.

@@ -42,24 +42,49 @@ function Cell({ rowCol, color, raised = false }) {
   );
 }
 
-function StarMarker({ rowCol }) {
-  const [x, , z] = gridToWorld(rowCol);
-  const shape = useMemo(() => buildStarShape(CELL_SIZE * 0.26, CELL_SIZE * 0.11), []);
+// A dark disc backing behind a marker so it stays legible regardless of
+// whatever color/texture the cell underneath happens to be -- a marker in
+// a color close to the cell's own tone (white-on-cream, or a color arrow
+// on that same color's own cell) was nearly invisible before.
+function MarkerBacking({ radius }) {
   return (
-    <mesh position={[x, CENTER_Y + 0.005, z]} rotation={[-Math.PI / 2, 0, 0]}>
-      <shapeGeometry args={[shape]} />
-      <meshStandardMaterial color="#ffffff" roughness={0.5} metalness={0.15} side={THREE.DoubleSide} />
+    <mesh position={[0, -0.0005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <circleGeometry args={[radius, 20]} />
+      <meshStandardMaterial color="#241a10" roughness={0.6} side={THREE.DoubleSide} />
     </mesh>
   );
 }
 
+function StarMarker({ rowCol }) {
+  const [x, , z] = gridToWorld(rowCol);
+  const shape = useMemo(() => buildStarShape(CELL_SIZE * 0.26, CELL_SIZE * 0.11), []);
+  return (
+    <group position={[x, CENTER_Y + 0.005, z]}>
+      <MarkerBacking radius={CELL_SIZE * 0.32} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0006, 0]}>
+        <shapeGeometry args={[shape]} />
+        <meshStandardMaterial
+          color="#f7c948"
+          emissive="#f7c948"
+          emissiveIntensity={0.25}
+          roughness={0.35}
+          metalness={0.25}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 // A small triangular arrow at each color's start cell, pointing along the
-// track's direction of travel.
-function StartArrow({ rowCol, color, direction }) {
+// track's direction of travel. Deliberately NOT tinted to the cell's own
+// color (that made it invisible) -- white with a dark backing reads
+// clearly against all four player colors.
+function StartArrow({ rowCol, direction }) {
   const [x, , z] = gridToWorld(rowCol);
   const shape = useMemo(() => {
     const s = new THREE.Shape();
-    const w = CELL_SIZE * 0.22, h = CELL_SIZE * 0.3;
+    const w = CELL_SIZE * 0.24, h = CELL_SIZE * 0.32;
     s.moveTo(0, h / 2);
     s.lineTo(-w / 2, -h / 2);
     s.lineTo(w / 2, -h / 2);
@@ -67,10 +92,13 @@ function StartArrow({ rowCol, color, direction }) {
     return s;
   }, []);
   return (
-    <mesh position={[x, CENTER_Y + 0.005, z]} rotation={[-Math.PI / 2, 0, direction]}>
-      <shapeGeometry args={[shape]} />
-      <meshStandardMaterial color={color} roughness={0.5} side={THREE.DoubleSide} />
-    </mesh>
+    <group position={[x, CENTER_Y + 0.005, z]} rotation={[0, direction, 0]}>
+      <MarkerBacking radius={CELL_SIZE * 0.34} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0006, 0]}>
+        <shapeGeometry args={[shape]} />
+        <meshStandardMaterial color="#ffffff" roughness={0.4} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
   );
 }
 
@@ -207,7 +235,7 @@ export default function Board() {
 
       {/* Entry arrows on each color's start cell */}
       {Object.entries(COLOR_START_OFFSET).map(([color, i]) => (
-        <StartArrow key={`arrow-${color}`} rowCol={TRACK[i]} color={COLOR_HEX[color]} direction={ARROW_DIR[color]} />
+        <StartArrow key={`arrow-${color}`} rowCol={TRACK[i]} direction={ARROW_DIR[color]} />
       ))}
 
       <CenterTriangles />

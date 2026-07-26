@@ -145,6 +145,7 @@ export function applyMoveToken(state, tokenId) {
 
   const newTokens = { ...state.tokens };
   const events = [];
+  let capturedSomething = false;
 
   if (newPos === FINISH_POS) {
     newTokens[tokenId] = { ...token, pos: 'finished' };
@@ -168,6 +169,7 @@ export function applyMoveToken(state, tokenId) {
           if (typeof otherToken.pos !== 'number' || otherToken.pos > 50) continue;
           if (globalSquare(otherToken.color, otherToken.pos) === landedGlobal) {
             newTokens[otherId] = { ...otherToken, pos: 'home' };
+            capturedSomething = true;
             events.push({
               type: 'captured', tokenId, color,
               capturedTokenId: otherId, capturedColor: otherToken.color,
@@ -190,7 +192,10 @@ export function applyMoveToken(state, tokenId) {
     };
   }
 
-  const extraTurn = diceValue === 6;
+  // Extra turn on a 6 *or* a capture -- matches the existing multiplayer
+  // game's rule (backend/src/games/ludo.js), not just the six-only reading
+  // of the original spec.
+  const extraTurn = diceValue === 6 || capturedSomething;
   const nextSeatIndex = extraTurn ? state.currentSeatIndex : advanceSeat(state);
   events.push(extraTurn ? { type: 'extra_turn', color } : { type: 'turn_advanced', nextSeatIndex });
 

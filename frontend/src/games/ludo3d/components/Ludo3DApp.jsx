@@ -40,11 +40,10 @@ export default function Ludo3DApp() {
   const currentSeat = ludoState?.seats[ludoState.currentSeatIndex];
   const canMove = ludoState?.phase === 'awaiting-move';
   const highlightableTokenIds = canMove && currentSeat?.isHuman ? ludoState.legalTokenIds : [];
-  const homeColor = ludoState?.seats.find((s) => s.isHuman)?.color || 'red';
 
   return (
     <div className="relative w-full h-full">
-      <Canvas camera={{ position: [-0.55, 3.0, -0.55], fov: 42 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
+      <Canvas camera={{ position: [0, 3.1, 0.01], fov: 42 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
         <color attach="background" args={['#161210']} />
         <Lighting />
         <Suspense fallback={null}>
@@ -65,7 +64,7 @@ export default function Ludo3DApp() {
           </Physics>
           <Effects />
         </Suspense>
-        <CameraRig homeColor={homeColor} focusColor={currentSeat?.color} />
+        <CameraRig />
       </Canvas>
 
       {!started && <SetupScreen onStart={handleStart} />}
