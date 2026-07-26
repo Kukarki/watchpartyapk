@@ -34,6 +34,7 @@ const Pawn = forwardRef(function Pawn({ color, colorHex, tokenIndex, initialPos,
   const animRef = useRef(null);
   const currentPosRef = useRef(initialPos);
   const mountedRef = useRef(false);
+  const ringRef = useRef(null);
 
   const hopTo = (path) =>
     new Promise((resolve) => {
@@ -108,6 +109,16 @@ const Pawn = forwardRef(function Pawn({ color, colorHex, tokenIndex, initialPos,
     if (group.scale.x !== 1) {
       group.scale.lerp(new THREE.Vector3(1, 1, 1), Math.min(1, delta * 10));
     }
+
+    // Blink the legal-move ring so movable tokens actually pop instead of
+    // sitting there as a static outline.
+    if (isHighlighted && ringRef.current) {
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * 5.5);
+      ringRef.current.material.emissiveIntensity = 0.5 + pulse * 1.5;
+      ringRef.current.material.opacity = 0.55 + pulse * 0.45;
+      const s = 1 + pulse * 0.25;
+      ringRef.current.scale.set(s, s, 1);
+    }
   });
 
   return (
@@ -121,9 +132,16 @@ const Pawn = forwardRef(function Pawn({ color, colorHex, tokenIndex, initialPos,
         <meshPhysicalMaterial color={colorHex} roughness={0.18} metalness={0} clearcoat={0.5} clearcoatRoughness={0.15} />
       </mesh>
       {isHighlighted && (
-        <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh ref={ringRef} position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[BASE_RADIUS * 1.3, BASE_RADIUS * 1.6, 24]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.6} side={THREE.DoubleSide} />
+          <meshStandardMaterial
+            color="#ffffff"
+            emissive="#ffffff"
+            emissiveIntensity={0.6}
+            transparent
+            opacity={0.8}
+            side={THREE.DoubleSide}
+          />
         </mesh>
       )}
     </group>
