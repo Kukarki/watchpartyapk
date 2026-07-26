@@ -19,6 +19,7 @@ export function useWebRTC() {
   const peersRef = useRef({});       // { userId: RTCPeerConnection }
   const localStreamRef = useRef(null);
   const currentRoomRef = useRef(null);
+  const disconnectTimersRef = useRef({}); // { userId: timeoutId } — grace period for transient "disconnected"
 
   // ── Media acquisition ─────────────────────────────────────────────────────
 
@@ -64,6 +65,8 @@ export function useWebRTC() {
   // ── Peer connection lifecycle ─────────────────────────────────────────────
 
   const destroyPeer = useCallback((userId) => {
+    clearTimeout(disconnectTimersRef.current[userId]);
+    delete disconnectTimersRef.current[userId];
     peersRef.current[userId]?.close();
     delete peersRef.current[userId];
     setRemoteStreams((prev) => {
@@ -96,14 +99,40 @@ export function useWebRTC() {
       setRemoteStreams((prev) => ({ ...prev, [remoteUserId]: streams[0] }));
     };
 
-    // Auto-cleanup on peer disconnect
+    // Auto-cleanup on peer disconnect. "disconnected" is explicitly a
+    // transient state per the WebRTC spec (brief packet loss, Wi-Fi roam,
+    // momentary NAT rebinding) and very often self-recovers to "connected"
+    // within a few seconds with no app intervention needed — treating it as
+    // fatal immediately was tearing down (and auto-ending) calls on network
+    // blips that would've healed on their own. Only "failed"/"closed" are
+    // acted on immediately; "disconnected" gets a grace window first.
     pc.onconnectionstatechange = () => {
       console.info(`[WebRTC] connectionState -> ${pc.connectionState} (peer ${remoteUserId})`);
-      if (pc.connectionState === 'failed') {
-        setCallError('Connection to a participant failed — they may be behind a restrictive network.');
+
+      if (pc.connectionState === 'connected') {
+        clearTimeout(disconnectTimersRef.current[remoteUserId]);
+        delete disconnectTimersRef.current[remoteUserId];
+        return;
       }
-      if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        clearTimeout(disconnectTimersRef.current[remoteUserId]);
+        delete disconnectTimersRef.current[remoteUserId];
+        if (pc.connectionState === 'failed') {
+          setCallError('Connection to a participant failed — they may be behind a restrictive network.');
+        }
         destroyPeer(remoteUserId);
+        return;
+      }
+
+      if (pc.connectionState === 'disconnected') {
+        clearTimeout(disconnectTimersRef.current[remoteUserId]);
+        disconnectTimersRef.current[remoteUserId] = setTimeout(() => {
+          delete disconnectTimersRef.current[remoteUserId];
+          if (peersRef.current[remoteUserId] === pc && pc.connectionState !== 'connected') {
+            destroyPeer(remoteUserId);
+          }
+        }, 6000);
       }
     };
     pc.oniceconnectionstatechange = () => {

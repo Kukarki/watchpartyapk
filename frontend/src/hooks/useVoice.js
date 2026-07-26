@@ -17,6 +17,7 @@ export function useVoice() {
   const peersRef = useRef({}); // { userId: RTCPeerConnection }
   const localStreamRef = useRef(null);
   const audioElementsRef = useRef({}); // { userId: HTMLAudioElement }
+  const disconnectTimersRef = useRef({}); // { userId: timeoutId } — grace period for transient "disconnected"
 
   // ── Get local microphone ─────────────────────────────────
   const startLocalAudio = useCallback(async () => {
@@ -63,9 +64,30 @@ export function useVoice() {
       audioElementsRef.current[remoteUserId].srcObject = stream;
     };
 
+    // "disconnected" is a transient WebRTC state (brief packet loss, Wi-Fi
+    // roam) that often self-recovers to "connected" within seconds — only
+    // "failed"/"closed" are torn down immediately; "disconnected" gets a
+    // grace window first (matches the same fix in useWebRTC.js).
     pc.onconnectionstatechange = () => {
-      if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+      if (pc.connectionState === 'connected') {
+        clearTimeout(disconnectTimersRef.current[remoteUserId]);
+        delete disconnectTimersRef.current[remoteUserId];
+        return;
+      }
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        clearTimeout(disconnectTimersRef.current[remoteUserId]);
+        delete disconnectTimersRef.current[remoteUserId];
         destroyPeer(remoteUserId);
+        return;
+      }
+      if (pc.connectionState === 'disconnected') {
+        clearTimeout(disconnectTimersRef.current[remoteUserId]);
+        disconnectTimersRef.current[remoteUserId] = setTimeout(() => {
+          delete disconnectTimersRef.current[remoteUserId];
+          if (peersRef.current[remoteUserId] === pc && pc.connectionState !== 'connected') {
+            destroyPeer(remoteUserId);
+          }
+        }, 6000);
       }
     };
 
@@ -83,6 +105,8 @@ export function useVoice() {
   }, [emit]);
 
   const destroyPeer = useCallback((userId) => {
+    clearTimeout(disconnectTimersRef.current[userId]);
+    delete disconnectTimersRef.current[userId];
     peersRef.current[userId]?.close();
     delete peersRef.current[userId];
     if (audioElementsRef.current[userId]) {

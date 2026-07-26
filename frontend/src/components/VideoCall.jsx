@@ -120,18 +120,41 @@ export default function VideoCall() {
   }, [leaveCall, isBlurOn, toggleBlur, localStream, updateVideoTrack, stopFilter]);
 
   // If everyone else leaves, end the call for us too instead of leaving us
-  // sitting alone in an "active" call indefinitely.
+  // sitting alone in an "active" call indefinitely. Debounced: remoteStreams
+  // can also empty out momentarily during a transient WebRTC "disconnected"
+  // blip that self-recovers within a few seconds (useWebRTC.js gives peers a
+  // 6s grace window for that) — ending the call the instant the count hits 0
+  // was mistaking a brief network hiccup for "everyone left" and dropping
+  // otherwise-healthy calls. Waiting a beat, and canceling if a remote peer
+  // reappears, avoids that false positive while still ending abandoned calls.
   const hadRemotePeersRef = useRef(false);
+  const emptyTimeoutRef = useRef(null);
   useEffect(() => {
+    if (!isInCall) {
+      // Explicit leave (or the call never started) — drop any pending
+      // auto-leave timer so it can't fire a redundant handleLeave() later.
+      clearTimeout(emptyTimeoutRef.current);
+      emptyTimeoutRef.current = null;
+      return;
+    }
     const count = Object.keys(remoteStreams).length;
     if (count > 0) {
       hadRemotePeersRef.current = true;
-    } else if (hadRemotePeersRef.current && isInCall) {
-      hadRemotePeersRef.current = false;
-      toast('Call ended — everyone else left', { icon: '📵' });
-      handleLeave();
+      clearTimeout(emptyTimeoutRef.current);
+      emptyTimeoutRef.current = null;
+    } else if (hadRemotePeersRef.current && !emptyTimeoutRef.current) {
+      emptyTimeoutRef.current = setTimeout(() => {
+        emptyTimeoutRef.current = null;
+        hadRemotePeersRef.current = false;
+        toast('Call ended — everyone else left', { icon: '📵' });
+        handleLeave();
+      }, 8000);
     }
   }, [remoteStreams, isInCall, handleLeave]);
+
+  // Cancel the pending auto-leave timer on unmount so it can't fire after
+  // the component (and the call it would end) is already gone.
+  useEffect(() => () => clearTimeout(emptyTimeoutRef.current), []);
 
   const handleFilterChange = useCallback((name) => {
     if (name === 'none') {
