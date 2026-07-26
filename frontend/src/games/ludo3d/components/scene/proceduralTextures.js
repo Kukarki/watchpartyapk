@@ -18,7 +18,7 @@ function clamp8(v) {
 }
 
 /** Fine-grain noise color texture -- reads as fabric/felt rather than flat plastic. */
-export function getFeltColorTexture(hex, { size = 128, amount = 14, repeat = 3 } = {}) {
+export function getFeltColorTexture(hex, { size = 256, amount = 14, repeat = 3 } = {}) {
   const key = `felt-color:${hex}:${amount}:${repeat}`;
   if (cache.has(key)) return cache.get(key);
 
@@ -40,12 +40,13 @@ export function getFeltColorTexture(hex, { size = 128, amount = 14, repeat = 3 }
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeat, repeat);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
   cache.set(key, texture);
   return texture;
 }
 
 /** Grayscale noise usable as a roughnessMap -- fibers catch light unevenly. */
-export function getFeltRoughnessTexture({ size = 96, base = 200, amount = 60, repeat = 3 } = {}) {
+export function getFeltRoughnessTexture({ size = 192, base = 200, amount = 60, repeat = 3 } = {}) {
   const key = `felt-rough:${base}:${amount}:${repeat}`;
   if (cache.has(key)) return cache.get(key);
 
@@ -62,12 +63,13 @@ export function getFeltRoughnessTexture({ size = 96, base = 200, amount = 60, re
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeat, repeat);
+  texture.anisotropy = 8;
   cache.set(key, texture);
   return texture;
 }
 
 /** Streaky wood-grain color texture for the board's base slab. */
-export function getWoodColorTexture(hex, { size = 256, repeat = 2 } = {}) {
+export function getWoodColorTexture(hex, { size = 512, repeat = 2 } = {}) {
   const key = `wood-color:${hex}:${repeat}`;
   if (cache.has(key)) return cache.get(key);
 
@@ -90,6 +92,7 @@ export function getWoodColorTexture(hex, { size = 256, repeat = 2 } = {}) {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeat, repeat);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
   cache.set(key, texture);
   return texture;
 }

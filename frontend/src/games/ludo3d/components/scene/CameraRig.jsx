@@ -10,12 +10,13 @@ import { CameraControls } from '@react-three/drei';
 // locked (azimuth + polar) so it can't be dragged into that look by
 // accident; a little zoom is still allowed.
 //
-// Framed closer than before (2.2 vs the previous 3.1) -- the dice tray used
-// to sit just off the board's edge and needed extra headroom in-frame; now
-// that it lives in its own docked side panel (DicePanel.jsx) the board is
-// the only thing this camera needs to fit, so it can fill more of the
-// screen.
-const DEFAULT_Y = 2.2;
+// Framed closer than the original 3.1 -- the dice tray used to sit just off
+// the board's edge and needed extra headroom in-frame; now that it lives in
+// its own docked panel (DicePanel.jsx) the board doesn't need to share
+// space with it. Backed off slightly from the tightest framing (2.2) to
+// 2.35 so the top HUD (dice + player pills, both docked over the canvas)
+// has a clear margin instead of overlapping the board's top edge.
+const DEFAULT_Y = 2.35;
 
 export default function CameraRig() {
   const controlsRef = useRef(null);

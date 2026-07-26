@@ -124,11 +124,11 @@ const Pawn = forwardRef(function Pawn({ color, colorHex, tokenIndex, initialPos,
   return (
     <group ref={groupRef} onClick={onClick}>
       <mesh castShadow receiveShadow position={[0, BASE_HEIGHT / 2, 0]}>
-        <cylinderGeometry args={[BASE_RADIUS, BASE_RADIUS * 1.15, BASE_HEIGHT, 20]} />
+        <cylinderGeometry args={[BASE_RADIUS, BASE_RADIUS * 1.15, BASE_HEIGHT, 32]} />
         <meshPhysicalMaterial color={colorHex} roughness={0.22} metalness={0} clearcoat={0.4} clearcoatRoughness={0.2} />
       </mesh>
       <mesh castShadow receiveShadow position={[0, BASE_HEIGHT + DOME_RADIUS * 0.85, 0]}>
-        <sphereGeometry args={[DOME_RADIUS, 20, 20]} />
+        <sphereGeometry args={[DOME_RADIUS, 32, 24]} />
         <meshPhysicalMaterial color={colorHex} roughness={0.18} metalness={0} clearcoat={0.5} clearcoatRoughness={0.15} />
       </mesh>
       {isHighlighted && (

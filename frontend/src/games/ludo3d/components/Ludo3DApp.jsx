@@ -40,7 +40,7 @@ export default function Ludo3DApp() {
 
   return (
     <div className="relative w-full h-full">
-      <Canvas camera={{ position: [0, 2.2, 0.01], fov: 42 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
+      <Canvas camera={{ position: [0, 2.35, 0.01], fov: 42 }} dpr={[1, 2]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
         <color attach="background" args={['#161210']} />
         <Lighting />
         <Suspense fallback={null}>
@@ -64,13 +64,15 @@ export default function Ludo3DApp() {
 
       {started && ludoState && ludoState.phase !== 'game-over' && (
         <>
-          <PlayerBadges seats={ludoState.seats} currentSeatIndex={ludoState.currentSeatIndex} />
-          <DicePanel
-            ludoState={ludoState}
-            isDiceRolling={isDiceRolling}
-            onRoll={rollForCurrentSeat}
-            registerDiceRef={registerDiceRef}
-          />
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5">
+            <DicePanel
+              ludoState={ludoState}
+              isDiceRolling={isDiceRolling}
+              onRoll={rollForCurrentSeat}
+              registerDiceRef={registerDiceRef}
+            />
+            <PlayerBadges seats={ludoState.seats} currentSeatIndex={ludoState.currentSeatIndex} />
+          </div>
           <TurnBanner
             ludoState={ludoState}
             onMoveToken={moveToken}
