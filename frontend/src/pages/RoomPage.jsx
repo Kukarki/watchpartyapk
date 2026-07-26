@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
+import { useRoomActions } from '@/contexts/RoomContext.jsx';
 import VideoPlayer     from '@/components/player/VideoPlayer.jsx';
 import ChatPanel       from '@/components/chat/ChatPanel.jsx';
 import MemberList      from '@/components/room/MemberList.jsx';
@@ -22,16 +23,24 @@ const SIDEBAR_TABS = [
 export default function RoomPage() {
   const { isChatOpen, toggleChat, room } = useRoomStore();
   const { connected }        = useSocketContext();
+  const { roomId }           = useRoomActions();
   const navigate             = useNavigate();
   const [sidebarTab, setSidebarTab] = useState('chat');
 
   // A "music"/"game" room slipped in via /room/:id — send it to the right page.
+  // Gated on room.id === roomId: `room` is a single global store, and on the
+  // very first render after navigating here from a different room, it can
+  // still briefly hold the *previous* room (e.g. the game you just left) —
+  // RoomProvider's own reset() runs in a useEffect, and child effects (this
+  // one) fire before parent effects, so this check would otherwise see stale
+  // data for one tick and redirect back into the room you just left.
   useEffect(() => {
-    if (room && room.roomType === 'music') navigate(`/music-room/${room.id}`, { replace: true });
-    if (room && room.roomType === 'game') navigate(`/game-room/${room.id}`, { replace: true });
-  }, [room, navigate]);
+    if (room?.id !== roomId) return;
+    if (room.roomType === 'music') navigate(`/music-room/${room.id}`, { replace: true });
+    if (room.roomType === 'game') navigate(`/game-room/${room.id}`, { replace: true });
+  }, [room, roomId, navigate]);
 
-  if (room && (room.roomType === 'music' || room.roomType === 'game')) return null;
+  if (room?.id === roomId && (room.roomType === 'music' || room.roomType === 'game')) return null;
 
   if (!room) {
     return (

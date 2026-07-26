@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
+import { useRoomActions } from '@/contexts/RoomContext.jsx';
 import { playlistApi } from '@/api/playlist.api.js';
 import { queueApi } from '@/api/room.api.js';
 import MusicPlayer     from '@/components/player/MusicPlayer.jsx';
@@ -23,6 +24,7 @@ const SIDEBAR_TABS = [
 export default function MusicRoomPage() {
   const { isChatOpen, toggleChat, room } = useRoomStore();
   const { connected }        = useSocketContext();
+  const { roomId }           = useRoomActions();
   const navigate             = useNavigate();
   const [sidebarTab, setSidebarTab] = useState('queue');
   const [queueRefreshKey, setQueueRefreshKey] = useState(0);
@@ -63,12 +65,16 @@ export default function MusicRoomPage() {
   };
 
   // A "watch"/"game" room slipped in via /music-room/:id — send it to the right page.
+  // Gated on room.id === roomId — see RoomPage.jsx for why: `room` is a
+  // single global store, and on the first render after navigating here from
+  // a different room, it can still briefly hold the *previous* room.
   useEffect(() => {
-    if (room && room.roomType === 'watch') navigate(`/room/${room.id}`, { replace: true });
-    if (room && room.roomType === 'game') navigate(`/game-room/${room.id}`, { replace: true });
-  }, [room, navigate]);
+    if (room?.id !== roomId) return;
+    if (room.roomType === 'watch') navigate(`/room/${room.id}`, { replace: true });
+    if (room.roomType === 'game') navigate(`/game-room/${room.id}`, { replace: true });
+  }, [room, roomId, navigate]);
 
-  if (room && (room.roomType === 'watch' || room.roomType === 'game')) return null;
+  if (room?.id === roomId && (room.roomType === 'watch' || room.roomType === 'game')) return null;
 
   if (!room) {
     return (
