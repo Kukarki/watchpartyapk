@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useSocketContext } from './SocketContext.jsx';
+import { useVoiceActions } from './VoiceContext.jsx';
 import { useRoomStore } from '@/store/roomStore.js';
 import { useAuthStore } from '@/store/authStore.js';
 
@@ -10,9 +11,11 @@ const RoomContext = createContext(null);
 export function RoomProvider({ children }) {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { socket, connected, emit } = useSocketContext();
   const { user } = useAuthStore();
   const store = useRoomStore();
+  const voiceActions = useVoiceActions();
   const joinedRef = useRef(false);
 
   // ── Register socket listeners whenever the connection (re)establishes ──
@@ -77,21 +80,8 @@ export function RoomProvider({ children }) {
         store.setTyping(uid, displayName, isTyping);
       },
 
-      'voice:member_joined': ({ userId: uid, displayName, avatar, channelId }) => {
-        store.addVoiceMember(channelId, { userId: uid, displayName, avatar, isMuted: false });
-      },
-
-      'voice:member_left': ({ userId: uid, channelId }) => {
-        store.removeVoiceMember(channelId, uid);
-      },
-
-      'voice:muted': ({ userId: uid, isMuted }) => {
-        store.setVoiceMemberMuted(uid, isMuted);
-      },
-
-      'voice:channel_members': ({ channelId, memberIds }) => {
-        store.setChannelMembers(channelId, memberIds);
-      },
+      // voice:* presence events are handled globally in VoiceContext.jsx —
+      // voice state must survive this room's own mount/unmount lifecycle.
 
       'game:state': ({ state, events }) => {
         store.setGameState(state);
@@ -190,29 +180,24 @@ export function RoomProvider({ children }) {
     emit('chat:typing', { roomId, isTyping });
   }, [emit, roomId]);
 
-  const joinVoice = useCallback((channelId = 'general') => {
-    emit('voice:join', { roomId, channelId });
-    store.setLocalVoiceState({ channelId });
-  }, [emit, roomId]);
+  // Thin wrappers around the app-root VoiceContext, pre-filling this room's
+  // id/name — voice connections themselves now live in VoiceContext so they
+  // survive navigating away from this room (see VoiceContext.jsx).
+  const joinVoice = useCallback((channelId = 'general', channelName) => {
+    return voiceActions.joinVoice(roomId, channelId, channelName, store.room?.name, location.pathname);
+  }, [voiceActions, roomId, store.room?.name, location.pathname]);
 
   const leaveVoice = useCallback(() => {
-    // useRoomStore.getState() reads fresh state — avoids the stale-closure bug
-    // where store.localVoiceState.channelId is null from mount time even though
-    // the user has since joined a channel.
-    const { channelId } = useRoomStore.getState().localVoiceState;
-    if (channelId) {
-      emit('voice:leave', { roomId, channelId });
-      store.setLocalVoiceState({ channelId: null });
-    }
-  }, [emit, roomId]);
+    voiceActions.leaveVoice();
+  }, [voiceActions]);
 
   const toggleMute = useCallback(() => {
-    const { channelId, isMuted } = store.localVoiceState;
-    if (!channelId) return;
-    const next = !isMuted;
-    store.setLocalVoiceState({ isMuted: next });
-    emit('voice:mute', { roomId, isMuted: next });
-  }, [emit, roomId]);
+    voiceActions.toggleMute();
+  }, [voiceActions]);
+
+  const toggleDeafen = useCallback(() => {
+    voiceActions.toggleDeafen();
+  }, [voiceActions]);
 
   const startGame = useCallback((opts = {}) => {
     emit('game:start', { roomId, ...opts });
@@ -227,7 +212,7 @@ export function RoomProvider({ children }) {
       roomId,
       sendPlay, sendPause, sendSeek, sendChangeUrl, requestSync,
       sendMessage, sendReaction, sendTyping,
-      joinVoice, leaveVoice, toggleMute,
+      joinVoice, leaveVoice, toggleMute, toggleDeafen,
       startGame, sendGameAction,
     }}>
       {children}

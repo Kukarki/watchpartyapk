@@ -38,6 +38,7 @@ export default function VideoCall() {
   const {
     localStream,
     remoteStreams,
+    peerConnectionStates,
     isMuted,
     isCameraOff,
     isInCall,
@@ -231,7 +232,13 @@ export default function VideoCall() {
 
   const remoteTiles = remoteEntries.map(([uid, stream]) => {
     const m = members.find((x) => x.userId === uid) ?? {};
-    return { userId: uid, stream, displayName: m.displayName ?? 'Participant', avatar: m.avatar };
+    return {
+      userId: uid,
+      stream,
+      displayName: m.displayName ?? 'Participant',
+      avatar: m.avatar,
+      connectionState: peerConnectionStates[uid],
+    };
   });
 
   // The stream shown in the local tile: blurred/filtered canvas stream or raw camera
@@ -352,12 +359,13 @@ export default function VideoCall() {
               </div>
 
               {/* Remote tiles */}
-              {remoteTiles.map(({ userId, stream, displayName, avatar }) => (
+              {remoteTiles.map(({ userId, stream, displayName, avatar, connectionState }) => (
                 <div key={userId} className="aspect-video">
                   <PeerVideo
                     stream={stream}
                     displayName={displayName}
                     avatar={avatar}
+                    connectionState={connectionState}
                   />
                 </div>
               ))}

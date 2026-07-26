@@ -1,25 +1,28 @@
-import { useEffect } from 'react';
-import { useRoomStore } from '@/store/roomStore.js';
+import { useVoiceStore } from '@/store/voiceStore.js';
 import { useRoomActions } from '@/contexts/RoomContext.jsx';
-import { useVoice } from '@/hooks/useVoice.js';
+import { useVoiceActions } from '@/contexts/VoiceContext.jsx';
+import { useAudioLevel } from '@/hooks/useAudioLevel.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import VoiceMember from './VoiceMember.jsx';
 import VoiceControls from './VoiceControls.jsx';
 import toast from 'react-hot-toast';
 
 export default function VoiceChannel({ channelId = 'general', channelName = 'General' }) {
-  const { voiceMembers, localVoiceState } = useRoomStore();
-  const { joinVoice, leaveVoice, toggleMute } = useRoomActions();
-  const { startLocalAudio, stopLocalAudio, destroyAllPeers } = useVoice();
+  const { voiceMembers, localVoiceState } = useVoiceStore();
+  const { roomId, joinVoice, leaveVoice, toggleMute, toggleDeafen } = useRoomActions();
+  const { remoteStreams, peerConnectionStates, localStream } = useVoiceActions();
   const { user } = useAuth();
 
-  const members = voiceMembers[channelId] || [];
-  const isInChannel = localVoiceState.channelId === channelId;
+  // Members are keyed by `${roomId}:${channelId}` — "game"/"music" repeat
+  // across every room of that type, and voice now persists across
+  // navigation, so channelId alone would bleed members between rooms.
+  const members = voiceMembers[`${roomId}:${channelId}`] || [];
+  const isInChannel = localVoiceState.channelId === channelId && localVoiceState.roomId === roomId;
+  const localLevel = useAudioLevel(isInChannel ? localStream : null);
 
   const handleJoin = async () => {
     try {
-      await startLocalAudio();
-      joinVoice(channelId);
+      await joinVoice(channelId, channelName);
     } catch (err) {
       if (err.name === 'NotAllowedError') {
         toast.error('Microphone permission denied');
@@ -28,22 +31,6 @@ export default function VoiceChannel({ channelId = 'general', channelName = 'Gen
       }
     }
   };
-
-  const handleLeave = () => {
-    leaveVoice();
-    stopLocalAudio();
-    destroyAllPeers();
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (localVoiceState.channelId === channelId) {
-        handleLeave();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="px-3 py-2">
@@ -62,7 +49,7 @@ export default function VoiceChannel({ channelId = 'general', channelName = 'Gen
           )}
         </div>
 
-        {!isInChannel ? (
+        {!isInChannel && (
           <button
             onClick={handleJoin}
             className="btn-ghost text-xs px-3 py-1 text-online hover:text-online
@@ -70,27 +57,24 @@ export default function VoiceChannel({ channelId = 'general', channelName = 'Gen
           >
             Join Voice
           </button>
-        ) : (
-          <button
-            onClick={handleLeave}
-            className="btn-ghost text-xs px-3 py-1 text-danger hover:text-danger
-                        border border-danger/20 hover:border-danger/40 hover:bg-danger/5"
-          >
-            Leave
-          </button>
         )}
       </div>
 
       {/* Member list */}
       {members.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
-          {members.map((member) => (
-            <VoiceMember
-              key={member.userId}
-              member={member}
-              isSelf={member.userId === user?.userId}
-            />
-          ))}
+          {members.map((member) => {
+            const isSelf = member.userId === user?.userId;
+            return (
+              <VoiceMember
+                key={member.userId}
+                member={member}
+                isSelf={isSelf}
+                connectionState={isSelf ? 'connected' : peerConnectionStates[member.userId]}
+                stream={isSelf ? null : remoteStreams[member.userId]}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -99,7 +83,11 @@ export default function VoiceChannel({ channelId = 'general', channelName = 'Gen
         <div className="border-t border-border/50 pt-2 mt-1">
           <VoiceControls
             isMuted={localVoiceState.isMuted}
+            isDeafened={localVoiceState.isDeafened}
+            isSpeaking={!localVoiceState.isMuted && localLevel > 0.08}
             onToggleMute={toggleMute}
+            onToggleDeafen={toggleDeafen}
+            onLeave={leaveVoice}
             user={user}
           />
         </div>

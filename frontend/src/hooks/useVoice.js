@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
-import { useRoomStore } from '@/store/roomStore.js';
+import { useVoiceStore } from '@/store/voiceStore.js';
 import { useAuthStore } from '@/store/authStore.js';
 import { getIceServers } from '@/utils/iceServers.js';
 
@@ -12,7 +12,11 @@ import { getIceServers } from '@/utils/iceServers.js';
 export function useVoice() {
   const { socket, emit } = useSocketContext();
   const { user } = useAuthStore();
-  const { localVoiceState } = useRoomStore();
+  const { localVoiceState } = useVoiceStore();
+
+  const [peerConnectionStates, setPeerConnectionStates] = useState({}); // { userId: 'connecting'|'connected'|'reconnecting'|'failed' }
+  const [remoteStreams, setRemoteStreams] = useState({}); // { userId: MediaStream } — lets UI drive speaking rings
+  const [localStream, setLocalStream] = useState(null); // mirrors localStreamRef, for UI (e.g. self speaking ring)
 
   const peersRef = useRef({}); // { userId: RTCPeerConnection }
   const localStreamRef = useRef(null);
@@ -27,12 +31,14 @@ export function useVoice() {
       video: false,
     });
     localStreamRef.current = stream;
+    setLocalStream(stream);
     return stream;
   }, []);
 
   const stopLocalAudio = useCallback(() => {
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
+    setLocalStream(null);
   }, []);
 
   // ── Create peer connection to a remote user ───────────────
@@ -40,6 +46,7 @@ export function useVoice() {
     const iceServers = await getIceServers();
     const pc = new RTCPeerConnection({ iceServers });
     peersRef.current[remoteUserId] = pc;
+    setPeerConnectionStates((prev) => ({ ...prev, [remoteUserId]: 'connecting' }));
 
     // Add local tracks
     localStreamRef.current?.getTracks().forEach((track) => {
@@ -59,19 +66,23 @@ export function useVoice() {
       if (!audioElementsRef.current[remoteUserId]) {
         const audio = new Audio();
         audio.autoplay = true;
+        audio.muted = useVoiceStore.getState().localVoiceState.isDeafened;
         audioElementsRef.current[remoteUserId] = audio;
       }
       audioElementsRef.current[remoteUserId].srcObject = stream;
+      setRemoteStreams((prev) => ({ ...prev, [remoteUserId]: stream }));
     };
 
     // "disconnected" is a transient WebRTC state (brief packet loss, Wi-Fi
     // roam) that often self-recovers to "connected" within seconds — only
     // "failed"/"closed" are torn down immediately; "disconnected" gets a
-    // grace window first (matches the same fix in useWebRTC.js).
+    // grace window first (matches the same fix in useWebRTC.js), surfaced
+    // to the UI as "reconnecting" so a blip shows feedback instead of silence.
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'connected') {
         clearTimeout(disconnectTimersRef.current[remoteUserId]);
         delete disconnectTimersRef.current[remoteUserId];
+        setPeerConnectionStates((prev) => ({ ...prev, [remoteUserId]: 'connected' }));
         return;
       }
       if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
@@ -81,6 +92,7 @@ export function useVoice() {
         return;
       }
       if (pc.connectionState === 'disconnected') {
+        setPeerConnectionStates((prev) => ({ ...prev, [remoteUserId]: 'reconnecting' }));
         clearTimeout(disconnectTimersRef.current[remoteUserId]);
         disconnectTimersRef.current[remoteUserId] = setTimeout(() => {
           delete disconnectTimersRef.current[remoteUserId];
@@ -113,6 +125,18 @@ export function useVoice() {
       audioElementsRef.current[userId].srcObject = null;
       delete audioElementsRef.current[userId];
     }
+    setRemoteStreams((prev) => {
+      if (!(userId in prev)) return prev;
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+    setPeerConnectionStates((prev) => {
+      if (!(userId in prev)) return prev;
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
   }, []);
 
   const destroyAllPeers = useCallback(() => {
@@ -186,10 +210,22 @@ export function useVoice() {
     setMuted(localVoiceState.isMuted);
   }, [localVoiceState.isMuted, setMuted]);
 
+  // Deafening mutes what we hear from everyone else — applied to every
+  // live remote <audio> element, and to any created after the toggle (see
+  // the ontrack handler above, which reads the current value directly).
+  useEffect(() => {
+    Object.values(audioElementsRef.current).forEach((audio) => {
+      audio.muted = localVoiceState.isDeafened;
+    });
+  }, [localVoiceState.isDeafened]);
+
   return {
     startLocalAudio,
     stopLocalAudio,
     destroyAllPeers,
     setMuted,
+    remoteStreams,
+    peerConnectionStates,
+    localStream,
   };
 }

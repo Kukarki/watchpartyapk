@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider }    from '@/contexts/AuthContext.jsx';
 import { SocketProvider }  from '@/contexts/SocketContext.jsx';
+import { VoiceProvider }   from '@/contexts/VoiceContext.jsx';
 import { RoomProvider }    from '@/contexts/RoomContext.jsx';
 import { FriendsProvider } from '@/contexts/FriendsContext.jsx';
 import ProtectedRoute      from '@/components/layout/ProtectedRoute.jsx';
@@ -34,6 +35,7 @@ export default function App() {
     <ErrorBoundary>
     <AuthProvider>
       <SocketProvider>
+      <VoiceProvider>
       <FriendsProvider>
         <Routes>
           {/* Public */}
@@ -106,6 +108,7 @@ export default function App() {
           }}
         />
       </FriendsProvider>
+      </VoiceProvider>
       </SocketProvider>
     </AuthProvider>
     </ErrorBoundary>

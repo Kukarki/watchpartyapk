@@ -20,13 +20,8 @@ export const useRoomStore = create((set, get) => ({
   messages: [],
   typingUsers: {},   // { userId: { displayName, timeout } }
 
-  // Voice
-  voiceMembers: {},  // { channelId: [{ userId, displayName, avatar, isMuted }] }
-  localVoiceState: {
-    channelId: null,
-    isMuted: false,
-    isDeafened: false,
-  },
+  // Voice state lives in voiceStore.js — it must survive room navigation,
+  // unlike everything else here which resets per-room.
 
   // UI
   isChatOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
@@ -115,45 +110,6 @@ export const useRoomStore = create((set, get) => ({
       return { typingUsers };
     }),
 
-  // ── Voice ─────────────────────────────────────────────
-
-  addVoiceMember: (channelId, member) =>
-    set((s) => {
-      const channel = s.voiceMembers[channelId] || [];
-      if (channel.some((m) => m.userId === member.userId)) return s;
-      return { voiceMembers: { ...s.voiceMembers, [channelId]: [...channel, member] } };
-    }),
-
-  removeVoiceMember: (channelId, userId) =>
-    set((s) => ({
-      voiceMembers: {
-        ...s.voiceMembers,
-        [channelId]: (s.voiceMembers[channelId] || []).filter((m) => m.userId !== userId),
-      },
-    })),
-
-  setVoiceMemberMuted: (userId, isMuted) =>
-    set((s) => {
-      const voiceMembers = { ...s.voiceMembers };
-      for (const ch of Object.keys(voiceMembers)) {
-        voiceMembers[ch] = voiceMembers[ch].map((m) =>
-          m.userId === userId ? { ...m, isMuted } : m
-        );
-      }
-      return { voiceMembers };
-    }),
-
-  setLocalVoiceState: (patch) =>
-    set((s) => ({ localVoiceState: { ...s.localVoiceState, ...patch } })),
-
-  setChannelMembers: (channelId, memberIds) =>
-    set((s) => ({
-      voiceMembers: {
-        ...s.voiceMembers,
-        [channelId]: memberIds.map((userId) => ({ userId, isMuted: false })),
-      },
-    })),
-
   // ── UI ────────────────────────────────────────────────
 
   toggleChat: () => set((s) => ({ isChatOpen: !s.isChatOpen })),
@@ -167,7 +123,5 @@ export const useRoomStore = create((set, get) => ({
       gameState: null,
       messages: [],
       typingUsers: {},
-      voiceMembers: {},
-      localVoiceState: { channelId: null, isMuted: false, isDeafened: false },
     }),
 }));

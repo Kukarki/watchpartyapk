@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useRoomStore } from '@/store/roomStore.js';
+import { useVoiceStore } from '@/store/voiceStore.js';
 import { useFriendsStore } from '@/store/friendsStore.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useSocketContext } from '@/contexts/SocketContext.jsx';
@@ -7,12 +8,18 @@ import Avatar from '@/components/ui/Avatar.jsx';
 import toast from 'react-hot-toast';
 
 export default function MemberList() {
-  const { members, room, voiceMembers } = useRoomStore();
+  const { members, room } = useRoomStore();
+  const { voiceMembers } = useVoiceStore();
   const { user } = useAuth();
   const [showInvite, setShowInvite] = useState(false);
 
+  // voiceMembers is keyed by `${roomId}:${channelId}` — only count channels
+  // that belong to this room, so a mic badge doesn't leak in from a voice
+  // channel the viewer happens to still be connected to in another room.
   const voiceUserIds = new Set(
-    Object.values(voiceMembers).flatMap((ch) => ch.map((m) => m.userId))
+    Object.entries(voiceMembers)
+      .filter(([key]) => key.startsWith(`${room?.id}:`))
+      .flatMap(([, ch]) => ch.map((m) => m.userId))
   );
 
   return (

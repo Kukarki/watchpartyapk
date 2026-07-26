@@ -4,6 +4,7 @@ import { useFriendsStore } from '@/store/friendsStore.js';
 import { useExtensionPresent } from '@/hooks/useExtensionPresent.js';
 import { EXTENSION_REPO_URL } from '@/constants.js';
 import GradientButton from '@/components/ui/GradientButton.jsx';
+import VoicePresenceBar from '@/components/voice/VoicePresenceBar.jsx';
 
 const NAV_ITEMS = [
   { to: '/home',          label: 'Home',    icon: '🏠' },
@@ -102,6 +103,8 @@ export default function AppShell({ children }) {
           </div>
         </footer>
       </div>
+
+      <VoicePresenceBar />
 
       {/* Mobile bottom tab bar */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-20 border-t border-border bg-surface/90 backdrop-blur-xl">

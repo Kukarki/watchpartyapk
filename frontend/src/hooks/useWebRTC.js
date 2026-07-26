@@ -11,6 +11,7 @@ export function useWebRTC() {
 
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState({});  // { userId: MediaStream }
+  const [peerConnectionStates, setPeerConnectionStates] = useState({}); // { userId: 'connecting'|'connected'|'reconnecting'|'failed' }
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isInCall, setIsInCall] = useState(false);
@@ -74,6 +75,12 @@ export function useWebRTC() {
       delete next[userId];
       return next;
     });
+    setPeerConnectionStates((prev) => {
+      if (!(userId in prev)) return prev;
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
   }, []);
 
   const destroyAllPeers = useCallback(() => {
@@ -86,6 +93,7 @@ export function useWebRTC() {
     const iceServers = await getIceServers();
     const pc = new RTCPeerConnection({ iceServers });
     peersRef.current[remoteUserId] = pc;
+    setPeerConnectionStates((prev) => ({ ...prev, [remoteUserId]: 'connecting' }));
 
     localStreamRef.current?.getTracks().forEach((track) => {
       pc.addTrack(track, localStreamRef.current);
@@ -112,6 +120,7 @@ export function useWebRTC() {
       if (pc.connectionState === 'connected') {
         clearTimeout(disconnectTimersRef.current[remoteUserId]);
         delete disconnectTimersRef.current[remoteUserId];
+        setPeerConnectionStates((prev) => ({ ...prev, [remoteUserId]: 'connected' }));
         return;
       }
 
@@ -126,6 +135,7 @@ export function useWebRTC() {
       }
 
       if (pc.connectionState === 'disconnected') {
+        setPeerConnectionStates((prev) => ({ ...prev, [remoteUserId]: 'reconnecting' }));
         clearTimeout(disconnectTimersRef.current[remoteUserId]);
         disconnectTimersRef.current[remoteUserId] = setTimeout(() => {
           delete disconnectTimersRef.current[remoteUserId];
@@ -313,6 +323,7 @@ export function useWebRTC() {
   return {
     localStream,
     remoteStreams,   // { [userId]: MediaStream }
+    peerConnectionStates, // { [userId]: 'connecting'|'connected'|'reconnecting'|'failed' }
     isMuted,
     isCameraOff,
     isInCall,
