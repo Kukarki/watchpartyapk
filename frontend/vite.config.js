@@ -33,8 +33,19 @@ export default defineConfig({
           socket: ['socket.io-client'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-scroll-area'],
           three: ['three', '@pixiv/three-vrm'],
+          'ludo3d-vendor': [
+            '@react-three/fiber', '@react-three/drei',
+            '@react-three/rapier', '@dimforge/rapier3d-compat',
+            '@react-three/postprocessing',
+          ],
         },
       },
     },
+  },
+  optimizeDeps: {
+    exclude: ['@dimforge/rapier3d-compat'],
+  },
+  test: {
+    environment: 'node',
   },
 });

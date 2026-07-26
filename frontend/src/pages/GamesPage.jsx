@@ -82,6 +82,22 @@ export default function GamesPage() {
               </div>
             </div>
           ))}
+
+          {/* Standalone, client-only -- no room/backend involved, so it
+              bypasses handleStartGame/roomApi entirely. */}
+          <div className="card p-6 text-left">
+            <div className="text-4xl mb-3">🧊</div>
+            <h3 className="font-display font-semibold text-bright text-base mb-1">Ludo 3D</h3>
+            <p className="text-dim text-xs leading-relaxed mb-4">
+              A real physics tabletop Ludo -- tumbling dice, glossy pawns, solo vs bots.
+            </p>
+            <button
+              onClick={() => navigate('/ludo-3d')}
+              className="btn-primary text-xs px-3 py-1.5 justify-center"
+            >
+              🎲 Play in 3D
+            </button>
+          </div>
         </div>
       </main>
     </AppShell>

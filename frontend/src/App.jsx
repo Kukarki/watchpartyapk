@@ -25,6 +25,7 @@ import PrivacyPage         from '@/pages/PrivacyPage.jsx';
 import FriendsPage         from '@/pages/FriendsPage.jsx';
 import GamesPage           from '@/pages/GamesPage.jsx';
 import GameRoomPage        from '@/pages/GameRoomPage.jsx';
+import Ludo3DPage          from '@/pages/Ludo3DPage.jsx';
 import AvatarClosetPage    from '@/pages/AvatarClosetPage.jsx';
 import InventoryPage       from '@/pages/InventoryPage.jsx';
 import VroidHubCallbackPage from '@/pages/VroidHubCallbackPage.jsx';
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="/auth/spotify/callback" element={<SpotifyCallbackPage />} />
             <Route path="/auth/youtube/callback" element={<YouTubeCallbackPage />} />
             <Route path="/games" element={<GamesPage />} />
+            <Route path="/ludo-3d" element={<Ludo3DPage />} />
             <Route path="/avatar-closet" element={<AvatarClosetPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/auth/vroid-hub/callback" element={<VroidHubCallbackPage />} />

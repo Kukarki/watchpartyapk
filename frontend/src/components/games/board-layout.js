@@ -54,7 +54,7 @@ export const BASE_TOP_LEFT = {
   yellow: [9, 9],
   blue:   [9, 0],
 };
-const TOKEN_SLOT_OFFSETS = [[1, 1], [1, 4], [4, 1], [4, 4]];
+export const TOKEN_SLOT_OFFSETS = [[1, 1], [1, 4], [4, 1], [4, 4]];
 
 export const COLOR_START_OFFSET = { red: 0, green: 13, yellow: 26, blue: 39 };
 
