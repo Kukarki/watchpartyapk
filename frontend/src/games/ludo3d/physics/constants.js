@@ -16,7 +16,10 @@ export const DIE_MATERIAL = { density: 1.0, friction: 0.4, restitution: 0.3 };
 // lives purely in the mesh, not the collider.
 export const TRAY_FLOOR = { halfWidth: 0.21, halfDepth: 0.21, friction: 0.6, restitution: 0.1 };
 export const TRAY_WALL = { height: 0.06, thickness: 0.02, friction: 0.3, restitution: 0.4 };
-export const TRAY_WORLD_POSITION = [1.15, 0, 0]; // just beyond the board's +X edge
+// The dice tray now lives in its own dedicated on-screen panel/scene (see
+// components/hud/DicePanel.jsx), not next to the board in-world -- so its
+// world origin is just the panel's own origin, no board edge to clear.
+export const TRAY_WORLD_POSITION = [0, 0, 0];
 
 export const SPAWN = {
   jitterXZ: 0.12,

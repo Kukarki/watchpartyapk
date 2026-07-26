@@ -1,8 +1,5 @@
 import { Suspense, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Physics } from '@react-three/rapier';
-import Dice from './scene/Dice.jsx';
-import DiceTray from './scene/DiceTray.jsx';
 import Board from './scene/Board.jsx';
 import Ground from './scene/Ground.jsx';
 import Pawns from './scene/Pawns.jsx';
@@ -12,10 +9,10 @@ import Effects from './scene/Effects.jsx';
 import SetupScreen from './hud/SetupScreen.jsx';
 import PlayerBadges from './hud/PlayerBadges.jsx';
 import TurnBanner from './hud/TurnBanner.jsx';
+import DicePanel from './hud/DicePanel.jsx';
 import WinnerModal from './hud/WinnerModal.jsx';
 import { useLudo3DController } from '../state/useLudo3DStore.js';
 import { assignSeats } from '../engine/index.js';
-import { PHYSICS_TIMESTEP } from '../physics/constants.js';
 import { freeHeadlessDieWorld } from '../physics/rapierSetup.js';
 
 export default function Ludo3DApp() {
@@ -43,7 +40,7 @@ export default function Ludo3DApp() {
 
   return (
     <div className="relative w-full h-full">
-      <Canvas camera={{ position: [0, 3.1, 0.01], fov: 42 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
+      <Canvas camera={{ position: [0, 2.2, 0.01], fov: 42 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
         <color attach="background" args={['#161210']} />
         <Lighting />
         <Suspense fallback={null}>
@@ -58,10 +55,6 @@ export default function Ludo3DApp() {
               registerPawnRef={registerPawnRef}
             />
           )}
-          <Physics timeStep={PHYSICS_TIMESTEP} gravity={[0, -9.81, 0]}>
-            <DiceTray />
-            <Dice ref={registerDiceRef} />
-          </Physics>
           <Effects />
         </Suspense>
         <CameraRig />
@@ -72,10 +65,14 @@ export default function Ludo3DApp() {
       {started && ludoState && ludoState.phase !== 'game-over' && (
         <>
           <PlayerBadges seats={ludoState.seats} currentSeatIndex={ludoState.currentSeatIndex} />
-          <TurnBanner
+          <DicePanel
             ludoState={ludoState}
             isDiceRolling={isDiceRolling}
             onRoll={rollForCurrentSeat}
+            registerDiceRef={registerDiceRef}
+          />
+          <TurnBanner
+            ludoState={ludoState}
             onMoveToken={moveToken}
           />
         </>
