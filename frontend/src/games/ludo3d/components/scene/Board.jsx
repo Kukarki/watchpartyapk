@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import {
-  TRACK, HOME_STRETCH, SAFE_GLOBAL_SQUARES, BASE_TOP_LEFT, COLOR_HEX,
+  TRACK, HOME_STRETCH, SAFE_GLOBAL_SQUARES, BASE_TOP_LEFT,
   COLOR_START_OFFSET, TOKEN_SLOT_OFFSETS,
 } from '@/components/games/board-layout.js';
+import { COLOR_HEX } from '../../engine/colors.js';
 import { gridToWorld, CELL_SIZE, BOARD_SURFACE_Y, BOARD_HALF_EXTENT } from './boardTransform.js';
 import { getFeltColorTexture, getFeltRoughnessTexture, getWoodColorTexture } from './proceduralTextures.js';
 

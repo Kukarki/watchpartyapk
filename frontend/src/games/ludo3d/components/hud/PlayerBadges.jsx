@@ -1,4 +1,4 @@
-import { COLOR_HEX } from '@/components/games/board-layout.js';
+import { COLOR_HEX } from '../../engine/colors.js';
 
 export default function PlayerBadges({ seats, currentSeatIndex }) {
   return (

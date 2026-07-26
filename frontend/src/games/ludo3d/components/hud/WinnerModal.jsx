@@ -1,4 +1,4 @@
-import { COLOR_HEX } from '@/components/games/board-layout.js';
+import { COLOR_HEX } from '../../engine/colors.js';
 
 export default function WinnerModal({ seat, onPlayAgain }) {
   const hex = COLOR_HEX[seat.color];

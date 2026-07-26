@@ -1,4 +1,4 @@
-import { COLOR_HEX } from '@/components/games/board-layout.js';
+import { COLOR_HEX } from '../../engine/colors.js';
 
 // Primary interaction is clicking a highlighted pawn directly (see
 // Pawns.jsx), but the legal-move chips here give the same choice as a

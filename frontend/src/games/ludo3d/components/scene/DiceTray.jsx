@@ -19,7 +19,7 @@ export default function DiceTray() {
           <mesh receiveShadow castShadow={spec.name !== 'floor'}>
             <boxGeometry args={spec.halfExtents.map((h) => h * 2)} />
             <meshStandardMaterial
-              color={spec.name === 'floor' ? '#9c7847' : '#6b4a28'}
+              color={spec.name === 'floor' ? '#4a3524' : '#332316'}
               roughness={0.85}
               metalness={0}
             />

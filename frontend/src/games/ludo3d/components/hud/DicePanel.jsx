@@ -4,7 +4,7 @@ import { Physics } from '@react-three/rapier';
 import Dice from '../scene/Dice.jsx';
 import DiceTray from '../scene/DiceTray.jsx';
 import { PHYSICS_TIMESTEP } from '../../physics/constants.js';
-import { COLOR_HEX } from '@/components/games/board-layout.js';
+import { COLOR_HEX } from '../../engine/colors.js';
 
 // A dedicated on-screen dice stage docked to the side of the screen --
 // matching the old 2D game's small fixed "dice card" UI -- instead of a
@@ -36,22 +36,23 @@ export default function DicePanel({ ludoState, isDiceRolling, onRoll, registerDi
       style={{ background: 'rgba(10,10,10,0.65)', border: `1px solid ${hex}55`, backdropFilter: 'blur(4px)' }}
     >
       {message && (
-        <div className="text-xs font-medium px-1 text-center max-w-[100px]" style={{ color: hex }}>
+        <div className="text-sm font-semibold px-1 text-center max-w-[140px]" style={{ color: hex }}>
           {message}
         </div>
       )}
 
-      <div className="w-[110px] h-[110px] rounded-xl overflow-hidden shrink-0" style={{ background: '#3a2a1a', position: 'relative' }}>
+      <div className="w-[160px] h-[160px] rounded-xl overflow-hidden shrink-0" style={{ background: '#3a2a1a', position: 'relative' }}>
         <Canvas
-          camera={{ position: [0, 0.5, 0], rotation: [-Math.PI / 2, 0, 0], fov: 40 }}
-          style={{ width: 110, height: 110 }}
-          dpr={[1, 1.5]}
+          camera={{ position: [0, 0.48, 0], rotation: [-Math.PI / 2, 0, 0], fov: 40 }}
+          style={{ width: 160, height: 160 }}
+          dpr={[1, 2]}
           gl={{ antialias: false }}
           resize={{ debounce: 0 }}
         >
           <color attach="background" args={['#3a2a1a']} />
-          <ambientLight intensity={0.9} />
-          <directionalLight position={[0.3, 0.8, 0.4]} intensity={1.6} />
+          <ambientLight intensity={2.2} />
+          <directionalLight position={[0.3, 0.8, 0.4]} intensity={1.4} />
+          <pointLight position={[0, 0.3, 0]} intensity={0.6} />
           <Suspense fallback={null}>
             <Physics timeStep={PHYSICS_TIMESTEP} gravity={[0, -9.81, 0]}>
               <DiceTray />

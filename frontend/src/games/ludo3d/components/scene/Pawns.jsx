@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { COLOR_HEX } from '@/components/games/board-layout.js';
+import { COLOR_HEX } from '../../engine/colors.js';
 import Pawn from './Pawn.jsx';
 
 function PawnMount({ tokenId, registerPawnRef, ...pawnProps }) {
