@@ -9,12 +9,14 @@ function cornerCenter(color) {
 }
 
 /**
- * Frames the view from the human player's own seat -- looking straight
- * across the board from their side, home base nearest the camera, the way
- * you'd actually sit at a table -- instead of an arbitrary generic angle.
- * Free orbiting (drag/scroll) still works via CameraControls on top of
- * this starting frame; `focusColor` gently re-targets (never moves the
- * camera itself) toward whoever's turn it is.
+ * Frames the view from almost directly above the board, biased slightly
+ * toward the human player's own seat (home base still reads as "nearest")
+ * -- a flat, familiar top-down board-game look rather than an angled 3D
+ * perspective shot. Free orbiting (drag/scroll) still works via
+ * CameraControls on top of this starting frame, but its polar-angle range
+ * is capped so it can't be dragged into a dramatic low, "hanging" angle;
+ * `focusColor` gently re-targets (never moves the camera itself) toward
+ * whoever's turn it is.
  */
 export default function CameraRig({ homeColor = 'red', focusColor }) {
   const controlsRef = useRef(null);
@@ -28,11 +30,11 @@ export default function CameraRig({ homeColor = 'red', focusColor }) {
     const [hx, , hz] = cornerCenter(homeColor);
     const dirX = hx === 0 ? 0 : Math.sign(hx);
     const dirZ = hz === 0 ? 0 : Math.sign(hz);
-    // Pulled back beyond the board edge along the seat's own diagonal, at a
-    // flatter, more eye-level angle than a top-down drone shot.
-    const camX = dirX * 1.55;
-    const camZ = dirZ * 1.55;
-    controlsRef.current.setLookAt(camX, 1.05, camZ, 0, 0, 0, false);
+    // Mostly straight overhead (height dominates the x/z offset), just
+    // enough directional lean that "your side" still reads as nearest.
+    const camX = dirX * 0.55;
+    const camZ = dirZ * 0.55;
+    controlsRef.current.setLookAt(camX, 3.0, camZ, 0, 0, 0, false);
   }, [homeColor]);
 
   useEffect(() => {
@@ -41,15 +43,16 @@ export default function CameraRig({ homeColor = 'red', focusColor }) {
     const [x, , z] = cornerCenter(focusColor);
     // Blend toward the active corner rather than snapping straight to it --
     // keeps the nudge gentle instead of a hard re-center every turn.
-    controlsRef.current.setTarget(x * 0.3, 0, z * 0.3, true);
+    controlsRef.current.setTarget(x * 0.2, 0, z * 0.2, true);
   }, [focusColor]);
 
   return (
     <CameraControls
       ref={controlsRef}
-      minDistance={1}
-      maxDistance={3.5}
-      maxPolarAngle={Math.PI / 2.15}
+      minDistance={1.5}
+      maxDistance={5}
+      minPolarAngle={0.1}
+      maxPolarAngle={Math.PI / 3.4}
       dollyToCursor={false}
     />
   );

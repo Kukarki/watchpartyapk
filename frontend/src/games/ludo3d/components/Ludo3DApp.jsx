@@ -4,6 +4,7 @@ import { Physics } from '@react-three/rapier';
 import Dice from './scene/Dice.jsx';
 import DiceTray from './scene/DiceTray.jsx';
 import Board from './scene/Board.jsx';
+import Ground from './scene/Ground.jsx';
 import Pawns from './scene/Pawns.jsx';
 import Lighting from './scene/Lighting.jsx';
 import CameraRig from './scene/CameraRig.jsx';
@@ -43,9 +44,11 @@ export default function Ludo3DApp() {
 
   return (
     <div className="relative w-full h-full">
-      <Canvas camera={{ position: [-1.55, 1.05, -1.55], fov: 50 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
+      <Canvas camera={{ position: [-0.55, 3.0, -0.55], fov: 42 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
+        <color attach="background" args={['#161210']} />
         <Lighting />
         <Suspense fallback={null}>
+          <Ground />
           <Board />
           {ludoState && (
             <Pawns
