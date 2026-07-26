@@ -6,6 +6,7 @@ import {
   COLOR_START_OFFSET, TOKEN_SLOT_OFFSETS,
 } from '@/components/games/board-layout.js';
 import { gridToWorld, CELL_SIZE, BOARD_SURFACE_Y, BOARD_HALF_EXTENT } from './boardTransform.js';
+import { getFeltColorTexture, getFeltRoughnessTexture, getWoodColorTexture } from './proceduralTextures.js';
 
 const CELL = CELL_SIZE * 0.92; // small gap between cells for a visible grid
 const CELL_HEIGHT = 0.006;
@@ -31,10 +32,12 @@ function buildStarShape(outerRadius, innerRadius, points = 5) {
 function Cell({ rowCol, color, raised = false }) {
   const [x, , z] = gridToWorld(rowCol);
   const y = raised ? CENTER_Y + 0.002 : CENTER_Y;
+  const map = useMemo(() => getFeltColorTexture(color), [color]);
+  const roughnessMap = useMemo(() => getFeltRoughnessTexture(), []);
   return (
     <mesh position={[x, y, z]} receiveShadow castShadow>
       <boxGeometry args={[CELL, CELL_HEIGHT, CELL]} />
-      <meshStandardMaterial color={color} roughness={0.8} metalness={0} />
+      <meshStandardMaterial map={map} roughnessMap={roughnessMap} roughness={0.85} metalness={0} />
     </mesh>
   );
 }
@@ -77,16 +80,19 @@ function HomeBase({ color }) {
   const [cx, , cz] = gridToWorld([baseRow + 2.5, baseCol + 2.5]);
   const outerSize = CELL_SIZE * 6 - CELL_SIZE * 0.15;
   const innerSize = CELL_SIZE * 4.3;
+  const outerMap = useMemo(() => getFeltColorTexture(COLOR_HEX[color], { repeat: 5 }), [color]);
+  const innerMap = useMemo(() => getFeltColorTexture(CREAM, { repeat: 4 }), []);
+  const roughnessMap = useMemo(() => getFeltRoughnessTexture(), []);
 
   return (
     <group>
       <mesh position={[cx, CENTER_Y, cz]} receiveShadow>
         <boxGeometry args={[outerSize, CELL_HEIGHT, outerSize]} />
-        <meshStandardMaterial color={COLOR_HEX[color]} roughness={0.75} />
+        <meshStandardMaterial map={outerMap} roughnessMap={roughnessMap} roughness={0.8} />
       </mesh>
       <mesh position={[cx, CENTER_Y + 0.003, cz]} receiveShadow>
         <boxGeometry args={[innerSize, CELL_HEIGHT, innerSize]} />
-        <meshStandardMaterial color={CREAM} roughness={0.75} />
+        <meshStandardMaterial map={innerMap} roughnessMap={roughnessMap} roughness={0.8} />
       </mesh>
       {TOKEN_SLOT_OFFSETS.map(([dr, dc], i) => {
         const [px, , pz] = gridToWorld([baseRow + dr, baseCol + dc]);
@@ -149,6 +155,9 @@ export default function Board() {
   // Arrow direction (radians, around Y) roughly facing the next square in
   // each color's own arm -- a small aesthetic touch, not gameplay-critical.
   const ARROW_DIR = { red: 0, green: Math.PI / 2, yellow: Math.PI, blue: -Math.PI / 2 };
+  const woodMap = useMemo(() => getWoodColorTexture('#5b3a24'), []);
+  const topMap = useMemo(() => getFeltColorTexture(CREAM, { repeat: 8 }), []);
+  const topRoughnessMap = useMemo(() => getFeltRoughnessTexture(), []);
 
   return (
     <group>
@@ -161,11 +170,11 @@ export default function Board() {
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#5b3a24" roughness={0.85} metalness={0} />
+        <meshStandardMaterial map={woodMap} roughness={0.6} metalness={0} />
       </RoundedBox>
       <mesh position={[0, 0, 0]} receiveShadow>
         <boxGeometry args={[BOARD_HALF_EXTENT * 2 + 0.02, 0.006, BOARD_HALF_EXTENT * 2 + 0.02]} />
-        <meshStandardMaterial color={CREAM} roughness={0.9} metalness={0} />
+        <meshStandardMaterial map={topMap} roughnessMap={topRoughnessMap} roughness={0.85} metalness={0} />
       </mesh>
 
       {/* 4 home base corners */}

@@ -42,7 +42,7 @@ export default function Ludo3DApp() {
 
   return (
     <div className="relative w-full h-full">
-      <Canvas camera={{ position: [1.4, 1.6, 1.6], fov: 45 }} dpr={[1, 2]} shadows gl={{ antialias: false }}>
+      <Canvas camera={{ position: [1.4, 1.6, 1.6], fov: 45 }} dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }}>
         <Lighting />
         <Suspense fallback={null}>
           <Board />
