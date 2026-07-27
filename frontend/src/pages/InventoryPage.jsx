@@ -6,46 +6,84 @@ import toast from 'react-hot-toast';
 
 const CATEGORY_LABELS = {
   clothes: 'Clothes',
+  top: 'Tops',
+  bottom: 'Bottoms',
+  outfit_full: 'Full Outfits',
   hats: 'Hats',
+  hair: 'Hair',
   glasses: 'Glasses',
   shoes: 'Shoes',
+  acc_back: 'Back',
+  acc_ears: 'Ears',
+  acc_face: 'Face',
+  acc_hands: 'Hands',
+  acc_head: 'Head',
+  background: 'Backgrounds',
   backgrounds: 'Backgrounds',
+  frame: 'Frames',
+  effect: 'Effects',
   room_decorations: 'Room Decorations',
   special_items: 'Special Items',
 };
 
-// Placeholder art: the starter catalog (supabase_migration_v12.sql) seeded
-// every item with asset_url = NULL -- no real artwork exists yet. Until
-// each item has one, at least distinguish item *types* at a glance instead
-// of showing the same icon for everything.
+// Placeholder art: no item in the live catalog has asset_url/thumb_url set
+// yet -- real artwork doesn't exist for any of these 75 items. Until it
+// does, distinguish item *types* at a glance (a per-category icon) instead
+// of showing the same icon for everything, and use each item's own
+// colorway (a real hex the catalog already carries, just never rendered
+// anywhere) to tint its card instead of only the shared rarity color --
+// two items in the same category/rarity should still look different.
 const CATEGORY_ICONS = {
   clothes: '👕',
+  top: '👕',
+  bottom: '👖',
+  outfit_full: '🧥',
   hats: '🎩',
+  hair: '💇',
   glasses: '🕶️',
   shoes: '👟',
+  acc_back: '🎒',
+  acc_ears: '🎧',
+  acc_face: '🕶️',
+  acc_hands: '🧤',
+  acc_head: '👑',
+  background: '🖼️',
   backgrounds: '🖼️',
+  frame: '⭕',
+  effect: '✨',
   room_decorations: '🪴',
   special_items: '🏆',
 };
 
 function ItemCard({ item, owned, equipped, onEquip, onUnequip, pending }) {
-  const color = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
+  const rarityColor = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
+  // The colorway is the item's *own* color (varies per item, even within
+  // the same category/rarity); rarity color is just a fallback for items
+  // that don't have one.
+  const swatch = item.colorways?.[0]?.primary || rarityColor;
   return (
     <div
       className="card p-4 flex flex-col gap-2 relative overflow-hidden"
-      style={{ borderColor: owned ? `${color}40` : undefined }}
+      style={{ borderColor: owned ? `${rarityColor}40` : undefined }}
     >
       <div
         className="w-full aspect-square rounded-lg flex items-center justify-center text-3xl overflow-hidden"
-        style={{ background: `${color}18` }}
+        style={{ background: `${swatch}22` }}
       >
         {item.asset_url
           ? <img src={item.asset_url} alt={item.name} className="w-full h-full object-cover" />
           : (CATEGORY_ICONS[item.category] || '🎨')}
       </div>
+      {!item.asset_url && (
+        <span
+          className="absolute top-2 right-2 w-3 h-3 rounded-full border border-black/30"
+          style={{ background: swatch }}
+          title="Item color"
+        />
+      )}
       <div>
         <p className="text-bright text-sm font-medium truncate">{item.name}</p>
-        <p className="text-xs mt-0.5 capitalize" style={{ color }}>{item.rarity}</p>
+        <p className="text-xs mt-0.5 capitalize" style={{ color: rarityColor }}>{item.rarity}</p>
       </div>
       {owned ? (
         <button
