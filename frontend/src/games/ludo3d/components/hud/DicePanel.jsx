@@ -33,10 +33,8 @@ function DiceFace({ value, rolling }) {
 // Dice + roll button, matching the old 2D game's exact look: a flat
 // pip-face die next to the button. No status text -- kept intentionally
 // quiet. Real dice fairness still comes from the roll provider
-// (engine/rollProvider.js) -- this component is purely presentational,
-// cycling a random face while isDiceRolling is true (same technique as
-// the old game's rollingFace/setInterval) and then landing on the
-// resolved value.
+// (engine/rollProvider.js), which is a plain uniform 1-6 draw -- this
+// component is purely presentational.
 export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
   const seat = ludoState.seats[ludoState.currentSeatIndex];
   const isHumanTurn = seat.isHuman;
@@ -44,19 +42,37 @@ export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
 
   const [rollingFace, setRollingFace] = useState(1);
   const rollIntervalRef = useRef(null);
+  // The engine resets ludoState.diceValue to null once a token has been
+  // moved (it's meaningless again until the next roll) -- so the dice
+  // face was falling back to a hardcoded "1" for most of the idle time
+  // between turns, which is almost certainly why 1 *looked* like it came
+  // up constantly. Remembered here instead, independent of the engine's
+  // own null-between-turns bookkeeping.
+  const lastValueRef = useRef(1);
+
+  useEffect(() => {
+    if (ludoState.diceValue != null) lastValueRef.current = ludoState.diceValue;
+  }, [ludoState.diceValue]);
 
   useEffect(() => {
     if (isDiceRolling) {
+      // Spins forward sequentially from wherever the die last landed --
+      // e.g. a 4 spins 5, 6, 1, 2... -- rather than jumping to unrelated
+      // random faces each tick. Doesn't affect fairness at all (the roll
+      // provider already picks the actual result via a uniform 1-6 draw
+      // before this animation even starts), it's purely so the visible
+      // spin doesn't look like it's favoring any one face.
+      let face = lastValueRef.current;
       rollIntervalRef.current = setInterval(() => {
-        setRollingFace(1 + Math.floor(Math.random() * 6));
+        face = (face % 6) + 1;
+        setRollingFace(face);
       }, 90);
       return () => clearInterval(rollIntervalRef.current);
     }
-    clearInterval(rollIntervalRef.current);
     return undefined;
   }, [isDiceRolling]);
 
-  const displayValue = isDiceRolling ? rollingFace : (ludoState.diceValue ?? 1);
+  const displayValue = isDiceRolling ? rollingFace : lastValueRef.current;
 
   return (
     <div
