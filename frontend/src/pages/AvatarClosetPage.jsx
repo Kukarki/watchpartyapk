@@ -119,14 +119,23 @@ export default function AvatarClosetPage() {
           {loadingVroid ? (
             <div className="w-full aspect-square rounded-xl bg-raised animate-pulse" />
           ) : !vroidConnected ? (
-            <button
-              type="button"
-              onClick={handleConnectVroid}
-              disabled={connectingVroid}
-              className="btn-primary w-full justify-center py-2.5 disabled:opacity-40"
-            >
-              {connectingVroid ? 'Connecting…' : 'Connect VRoid Hub'}
-            </button>
+            <div className="space-y-3">
+              <p className="text-dim text-xs leading-relaxed">
+                Design your character — hair, outfits, glasses, accessories — for free in{' '}
+                <a href="https://vroid.com/en/studio" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline underline-offset-2">
+                  VRoid Studio
+                </a>
+                , upload it to VRoid Hub, then connect your account here to use it as your WatchParty avatar.
+              </p>
+              <button
+                type="button"
+                onClick={handleConnectVroid}
+                disabled={connectingVroid}
+                className="btn-primary w-full justify-center py-2.5 disabled:opacity-40"
+              >
+                {connectingVroid ? 'Connecting…' : 'Connect VRoid Hub'}
+              </button>
+            </div>
           ) : (
             <div className="space-y-4">
               {vrmUrl && (
@@ -144,24 +153,33 @@ export default function AvatarClosetPage() {
                   and upload it to Hub.
                 </p>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {vroidModels.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => handleSelectModel(m.id)}
-                      disabled={selectingId === m.id}
-                      className="rounded-lg overflow-hidden border border-border hover:border-amber/50 transition-colors disabled:opacity-40"
-                      title={m.name}
-                    >
-                      {m.thumbnailUrl ? (
-                        <img src={m.thumbnailUrl} alt={m.name} className="w-full aspect-square object-cover" />
-                      ) : (
-                        <div className="w-full aspect-square bg-raised flex items-center justify-center text-xl">🧑‍🎨</div>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    {vroidModels.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleSelectModel(m.id)}
+                        disabled={selectingId === m.id}
+                        className="rounded-lg overflow-hidden border border-border hover:border-amber/50 transition-colors disabled:opacity-40"
+                        title={m.name}
+                      >
+                        {m.thumbnailUrl ? (
+                          <img src={m.thumbnailUrl} alt={m.name} className="w-full aspect-square object-cover" />
+                        ) : (
+                          <div className="w-full aspect-square bg-raised flex items-center justify-center text-xl">🧑‍🎨</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-dim text-xs">
+                    Want a different outfit or accessories? Edit your character in{' '}
+                    <a href="https://vroid.com/en/studio" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline underline-offset-2">
+                      VRoid Studio
+                    </a>
+                    , re-upload to VRoid Hub, then pick it here.
+                  </p>
+                </>
               )}
             </div>
           )}
