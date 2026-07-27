@@ -3,22 +3,27 @@
 // things VRoid Hub specifically requires that Spotify/YouTube don't: PKCE
 // (code_verifier/code_challenge) and a proprietary `X-Api-Version` header.
 //
-// CONFIRMED (via a working reference provider config): the OAuth authorize
-// path (/oauth/authorize), token path (/oauth/token), the profile endpoint
-// (/api/account, and its response shape), the PKCE requirement, and the
-// X-Api-Version:11 header.
-//
-// STILL UNVERIFIED (best-documented guess, developer.vroid.com's own docs
-// blocked this codebase's fetch tooling): the character-model list and
-// download-license endpoint paths/shapes below. Confirm against
-// developer.vroid.com/en/api/ once reachable, or by testing the live flow.
+// CONFIRMED against pixiv's own official reference implementation
+// (github.com/pixiv/VRoidHub-API-Example, lib/vroid-hub-api.ts +
+// pages/api/vroid/*) once the live flow surfaced an OAUTH_FORBIDDEN 403 on
+// the endpoints below (they'd been a best-documented guess, since
+// developer.vroid.com was unreachable during original development): the
+// model list path is /api/account/character_models (no /v1/, no
+// is_private_visibility param -- paginated via max_id/count instead), and
+// the download flow is two calls -- POST /api/download_licenses with
+// { character_model_id } to get a license id, then GET
+// /api/download_licenses/{id}/download with redirect:'manual', reading the
+// real file URL off the Location header of the resulting redirect (never a
+// JSON body field). The OAuth authorize/token paths, /api/account profile
+// endpoint, PKCE, and the X-Api-Version:11 header were already confirmed
+// correct and are unchanged.
 import crypto from 'crypto';
 import { getSupabaseAdmin } from '../config/supabase.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
 const AUTH_BASE = 'https://hub.vroid.com';
-const API_BASE  = 'https://hub.vroid.com/api/v1';
+const API_BASE  = 'https://hub.vroid.com/api';
 const API_VERSION_HEADER = { 'X-Api-Version': '11' };
 
 // Short-lived, in-memory PKCE verifier store, keyed by `state` (which this
@@ -139,13 +144,13 @@ class VroidHubService {
     return data;
   }
 
-  // [{ id, name, thumbnailUrl }] — UNVERIFIED path/shape, see file header.
+  // [{ id, name, thumbnailUrl }]
   async listModels(userId) {
     const connection = await this.getConnection(userId);
     if (!connection) return { connected: false, models: [] };
 
     const accessToken = await this._validAccessToken(connection);
-    const res = await fetch(`${API_BASE}/character_models?is_private_visibility=true`, {
+    const res = await fetch(`${API_BASE}/account/character_models?count=50`, {
       headers: { Authorization: `Bearer ${accessToken}`, ...API_VERSION_HEADER },
     });
     if (!res.ok) {
@@ -172,24 +177,44 @@ class VroidHubService {
 
   // Fresh presigned download URL for the selected model's .vrm file — these
   // expire, so this always re-resolves via the API rather than caching the
-  // URL. UNVERIFIED path/shape, see file header.
+  // URL. Two-step flow (see file header): a license id first, then the
+  // actual file URL comes back as a redirect Location, not JSON.
   async getModelDownloadUrl(userId, modelId) {
     const connection = await this.getConnection(userId);
     if (!connection) throw httpError(400, 'VRoid Hub is not connected');
 
     const accessToken = await this._validAccessToken(connection);
-    const res = await fetch(`${API_BASE}/character_models/${modelId}/download_license`, {
+
+    const licenseRes = await fetch(`${API_BASE}/download_licenses`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...API_VERSION_HEADER },
-      body: JSON.stringify({ sdk_controller_name: 'watchparty' }),
+      body: JSON.stringify({ character_model_id: modelId }),
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      logger.error('VRoid Hub download-license fetch failed', { status: res.status, body, modelId });
+    if (!licenseRes.ok) {
+      const body = await licenseRes.text().catch(() => '');
+      logger.error('VRoid Hub download-license fetch failed', { status: licenseRes.status, body, modelId });
       throw httpError(502, 'Could not load this VRoid Hub model');
     }
-    const data = await res.json();
-    return data?.file?.url || data?.url || null;
+    const licenseId = (await licenseRes.json())?.data?.id;
+    if (!licenseId) {
+      logger.error('VRoid Hub download-license response had no id', { modelId });
+      throw httpError(502, 'Could not load this VRoid Hub model');
+    }
+
+    // The actual download is large, so the API hands back a redirect to the
+    // real file location rather than the file itself — read the Location
+    // header instead of following it.
+    const downloadRes = await fetch(`${API_BASE}/download_licenses/${licenseId}/download`, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Accept-Encoding': 'gzip', ...API_VERSION_HEADER },
+    });
+    const location = downloadRes.headers.get('location');
+    if (!location) {
+      logger.error('VRoid Hub download redirect had no Location header', { modelId, status: downloadRes.status });
+      throw httpError(502, 'Could not load this VRoid Hub model');
+    }
+    return location;
   }
 
   async selectModel(userId, modelId) {
