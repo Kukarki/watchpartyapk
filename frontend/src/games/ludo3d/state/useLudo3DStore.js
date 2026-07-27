@@ -16,8 +16,18 @@ const ROLL_ANIM_MS = 650;
 const useStore = create((set) => ({
   ludoState: null,
   isDiceRolling: false,
+  // The actual last-rolled number, tracked independent of
+  // ludoState.diceValue -- the engine resets diceValue straight back to
+  // null in the same transition when a roll has no legal move or forfeits
+  // three-in-a-row sixes, so the real rolled number never otherwise
+  // becomes observable. Without this, the dice face got stuck showing
+  // whatever the last move-producing roll was across every one of those
+  // in-between forfeited rolls, which looked like the same number kept
+  // coming up.
+  lastDiceValue: null,
   setLudoState: (s) => set({ ludoState: s }),
   setDiceRolling: (v) => set({ isDiceRolling: v }),
+  setLastDiceValue: (v) => set({ lastDiceValue: v }),
 }));
 
 /**
@@ -31,8 +41,10 @@ const useStore = create((set) => ({
 export function useLudo3DController() {
   const ludoState = useStore((s) => s.ludoState);
   const isDiceRolling = useStore((s) => s.isDiceRolling);
+  const lastDiceValue = useStore((s) => s.lastDiceValue);
   const setLudoState = useStore((s) => s.setLudoState);
   const setDiceRolling = useStore((s) => s.setDiceRolling);
+  const setLastDiceValue = useStore((s) => s.setLastDiceValue);
 
   const pawnRefs = useRef(new Map());
   const rollProviderRef = useRef(createLocalRollProvider());
@@ -82,12 +94,13 @@ export function useLudo3DController() {
       consecutiveSixes: ludoState.consecutiveSixes,
     });
     await new Promise((resolve) => setTimeout(resolve, ROLL_ANIM_MS));
+    setLastDiceValue(value);
     const { state: newState, events } = applyRoll(ludoState, value);
     setLudoState(newState);
     setDiceRolling(false);
     await playEvents(events);
     return { value, state: newState, events };
-  }, [ludoState, isDiceRolling, setDiceRolling, setLudoState, playEvents]);
+  }, [ludoState, isDiceRolling, setDiceRolling, setLudoState, setLastDiceValue, playEvents]);
 
   const moveToken = useCallback(async (tokenId) => {
     if (!ludoState || ludoState.phase !== 'awaiting-move') return null;
@@ -121,6 +134,7 @@ export function useLudo3DController() {
   return {
     ludoState,
     isDiceRolling,
+    lastDiceValue,
     startGame,
     rollForCurrentSeat,
     moveToken,

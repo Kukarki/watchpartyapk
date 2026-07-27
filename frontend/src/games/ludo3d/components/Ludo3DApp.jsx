@@ -17,7 +17,7 @@ import { freeHeadlessDieWorld } from '../physics/rapierSetup.js';
 
 export default function Ludo3DApp() {
   const {
-    ludoState, isDiceRolling, startGame, rollForCurrentSeat, moveToken,
+    ludoState, isDiceRolling, lastDiceValue, startGame, rollForCurrentSeat, moveToken,
     registerPawnRef,
   } = useLudo3DController();
   const [started, setStarted] = useState(false);
@@ -51,6 +51,7 @@ export default function Ludo3DApp() {
           <DicePanel
             ludoState={ludoState}
             isDiceRolling={isDiceRolling}
+            lastDiceValue={lastDiceValue}
             onRoll={rollForCurrentSeat}
           />
         </div>

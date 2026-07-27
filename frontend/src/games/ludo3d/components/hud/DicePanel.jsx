@@ -35,24 +35,13 @@ function DiceFace({ value, rolling }) {
 // quiet. Real dice fairness still comes from the roll provider
 // (engine/rollProvider.js), which is a plain uniform 1-6 draw -- this
 // component is purely presentational.
-export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
+export default function DicePanel({ ludoState, isDiceRolling, lastDiceValue, onRoll }) {
   const seat = ludoState.seats[ludoState.currentSeatIndex];
   const isHumanTurn = seat.isHuman;
   const hex = COLOR_HEX[seat.color];
 
   const [rollingFace, setRollingFace] = useState(1);
   const rollIntervalRef = useRef(null);
-  // The engine resets ludoState.diceValue to null once a token has been
-  // moved (it's meaningless again until the next roll) -- so the dice
-  // face was falling back to a hardcoded "1" for most of the idle time
-  // between turns, which is almost certainly why 1 *looked* like it came
-  // up constantly. Remembered here instead, independent of the engine's
-  // own null-between-turns bookkeeping.
-  const lastValueRef = useRef(1);
-
-  useEffect(() => {
-    if (ludoState.diceValue != null) lastValueRef.current = ludoState.diceValue;
-  }, [ludoState.diceValue]);
 
   useEffect(() => {
     if (isDiceRolling) {
@@ -62,7 +51,7 @@ export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
       // provider already picks the actual result via a uniform 1-6 draw
       // before this animation even starts), it's purely so the visible
       // spin doesn't look like it's favoring any one face.
-      let face = lastValueRef.current;
+      let face = lastDiceValue ?? 1;
       rollIntervalRef.current = setInterval(() => {
         face = (face % 6) + 1;
         setRollingFace(face);
@@ -70,9 +59,9 @@ export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
       return () => clearInterval(rollIntervalRef.current);
     }
     return undefined;
-  }, [isDiceRolling]);
+  }, [isDiceRolling, lastDiceValue]);
 
-  const displayValue = isDiceRolling ? rollingFace : lastValueRef.current;
+  const displayValue = isDiceRolling ? rollingFace : (lastDiceValue ?? 1);
 
   return (
     <div
