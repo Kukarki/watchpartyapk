@@ -18,7 +18,7 @@ import { freeHeadlessDieWorld } from '../physics/rapierSetup.js';
 export default function Ludo3DApp() {
   const {
     ludoState, isDiceRolling, startGame, rollForCurrentSeat, moveToken,
-    registerDiceRef, registerPawnRef,
+    registerPawnRef,
   } = useLudo3DController();
   const [started, setStarted] = useState(false);
 
@@ -52,7 +52,6 @@ export default function Ludo3DApp() {
             ludoState={ludoState}
             isDiceRolling={isDiceRolling}
             onRoll={rollForCurrentSeat}
-            registerDiceRef={registerDiceRef}
           />
         </div>
       )}
@@ -75,9 +74,6 @@ export default function Ludo3DApp() {
             )}
             <Effects />
           </Suspense>
-          {/* Its own Suspense boundary, isolated from the board/pawns above:
-              drei's <Text> loads its font asynchronously, and a slow/failed
-              load must never hide the entire board while it waits. */}
           <Suspense fallback={null}>
             {ludoState && (
               <PlayerNameLabels seats={ludoState.seats} currentSeatIndex={ludoState.currentSeatIndex} />

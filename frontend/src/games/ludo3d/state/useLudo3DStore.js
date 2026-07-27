@@ -5,9 +5,13 @@ import { playPawnHop, playCapture, playWinChime } from '../audio/sfx.js';
 
 const BOT_ROLL_DELAY_MS = 700;
 const BOT_MOVE_DELAY_MS = 550;
+// Matches the old 2D game's dice-spin duration (LudoBoard.jsx's
+// ROLL_ANIM_MS) -- the roll provider itself resolves near-instantly, this
+// is purely so the flat dice face has time to visibly spin before landing.
+const ROLL_ANIM_MS = 650;
 
 // The reactive slice -- anything a component needs to re-render on. Refs to
-// the Dice/Pawn 3D objects (below) are deliberately NOT here: they're
+// the Pawn 3D objects (below) are deliberately NOT here: they're
 // imperative handles, not render-driving state.
 const useStore = create((set) => ({
   ludoState: null,
@@ -17,12 +21,12 @@ const useStore = create((set) => ({
 }));
 
 /**
- * The integration point binding the pure engine, the physics-driven dice,
- * and the pawn animations together. Owns imperative refs to the 3D Dice/Pawn
- * objects (registered on mount) and exposes the actions components call:
- * startGame, rollForCurrentSeat, moveToken. Replaying an engine transition's
- * events[] against the right pawn ref (hop vs. capture-tumble) plus the
- * matching sound effect happens once, here -- not duplicated per caller.
+ * The integration point binding the pure engine and the pawn animations
+ * together. Owns imperative refs to the 3D Pawn objects (registered on
+ * mount) and exposes the actions components call: startGame,
+ * rollForCurrentSeat, moveToken. Replaying an engine transition's events[]
+ * against the right pawn ref (hop vs. capture-tumble) plus the matching
+ * sound effect happens once, here -- not duplicated per caller.
  */
 export function useLudo3DController() {
   const ludoState = useStore((s) => s.ludoState);
@@ -30,13 +34,8 @@ export function useLudo3DController() {
   const setLudoState = useStore((s) => s.setLudoState);
   const setDiceRolling = useStore((s) => s.setDiceRolling);
 
-  const diceRef = useRef(null);
   const pawnRefs = useRef(new Map());
   const rollProviderRef = useRef(createLocalRollProvider());
-
-  const registerDiceRef = useCallback((ref) => {
-    diceRef.current = ref;
-  }, []);
 
   const registerPawnRef = useCallback((tokenId, ref) => {
     if (ref) pawnRefs.current.set(tokenId, ref);
@@ -82,7 +81,7 @@ export function useLudo3DController() {
       color: seat.color,
       consecutiveSixes: ludoState.consecutiveSixes,
     });
-    await diceRef.current?.rollTo(value);
+    await new Promise((resolve) => setTimeout(resolve, ROLL_ANIM_MS));
     const { state: newState, events } = applyRoll(ludoState, value);
     setLudoState(newState);
     setDiceRolling(false);
@@ -125,7 +124,6 @@ export function useLudo3DController() {
     startGame,
     rollForCurrentSeat,
     moveToken,
-    registerDiceRef,
     registerPawnRef,
   };
 }

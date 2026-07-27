@@ -1,26 +1,59 @@
-import { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Physics } from '@react-three/rapier';
-import Dice from '../scene/Dice.jsx';
-import DiceTray from '../scene/DiceTray.jsx';
-import { PHYSICS_TIMESTEP } from '../../physics/constants.js';
+import { useEffect, useRef, useState } from 'react';
 import { COLOR_HEX } from '../../engine/colors.js';
 
-// A dedicated on-screen dice stage, positioned by the parent (Ludo3DApp.jsx)
-// at the top of the screen next to the status text -- matching the old 2D
-// game's "dice + status" top row. Own, independent <Canvas> (own WebGL
-// context) -- confirmed via isolated testing that a second canvas renders
-// correctly in this app's target browsers, and it's dramatically simpler/
-// more reliable than sharing the board's canvas through a scissor-
-// viewport (tried first; broke on view render-order and never fully
-// stabilized). The die is still a genuine, physically-simulated rigid
-// body -- own isolated Physics world, same headless-search-then-replay
-// mechanism as always (see physics/headlessDiceSearch.js); only the
-// render target changed.
-export default function DicePanel({ ludoState, isDiceRolling, onRoll, registerDiceRef }) {
+// Classic 6-face pip layouts on a 3x3 grid -- identical to the old 2D
+// game's DiceFace (components/games/LudoBoard.jsx). Copied verbatim on
+// request: the flat white square with dot pips is what reads as "a dice"
+// at a glance, whereas a tiny physically-simulated 3D die in its own
+// stage (tried first) was hard to see clearly no matter how it was lit
+// or framed.
+const PIP_LAYOUT = {
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8],
+};
+
+function DiceFace({ value, rolling }) {
+  const active = PIP_LAYOUT[value] || [];
+  return (
+    <div
+      className={`w-[84px] h-[84px] rounded-2xl bg-[#f4f6fa] shadow-inner grid grid-cols-3 grid-rows-3
+                  gap-1.5 p-3 shrink-0 ${rolling ? 'animate-[spin_0.5s_linear_infinite]' : ''}`}
+    >
+      {Array.from({ length: 9 }).map((_, i) => (
+        <span key={i} className={`rounded-full ${active.includes(i) ? 'bg-[#141826]' : 'bg-transparent'}`} />
+      ))}
+    </div>
+  );
+}
+
+// Dice + status, matching the old 2D game's exact look: a flat pip-face
+// die next to the roll button/status text. Real dice fairness still comes
+// from the roll provider (engine/rollProvider.js) -- this component is
+// purely presentational, cycling a random face while isDiceRolling is
+// true (same technique as the old game's rollingFace/setInterval) and
+// then landing on the resolved value.
+export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
   const seat = ludoState.seats[ludoState.currentSeatIndex];
   const isHumanTurn = seat.isHuman;
   const hex = COLOR_HEX[seat.color];
+
+  const [rollingFace, setRollingFace] = useState(1);
+  const rollIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (isDiceRolling) {
+      rollIntervalRef.current = setInterval(() => {
+        setRollingFace(1 + Math.floor(Math.random() * 6));
+      }, 90);
+      return () => clearInterval(rollIntervalRef.current);
+    }
+    clearInterval(rollIntervalRef.current);
+    return undefined;
+  }, [isDiceRolling]);
 
   let message = null;
   if (isDiceRolling) message = 'Rolling...';
@@ -30,35 +63,18 @@ export default function DicePanel({ ludoState, isDiceRolling, onRoll, registerDi
     message = isHumanTurn ? 'Tap a blinking token to move it' : `${seat.name} rolled ${ludoState.diceValue}...`;
   }
 
+  const displayValue = isDiceRolling ? rollingFace : (ludoState.diceValue ?? 1);
+
   return (
     <div
-      className="flex items-center gap-2.5 px-2.5 py-2 rounded-2xl"
+      className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
       style={{ background: 'rgba(10,10,10,0.65)', border: `1px solid ${hex}55`, backdropFilter: 'blur(4px)' }}
     >
-      <div className="w-[88px] h-[88px] rounded-xl overflow-hidden shrink-0" style={{ background: '#3a2a1a', position: 'relative' }}>
-        <Canvas
-          camera={{ position: [0, 0.48, 0], rotation: [-Math.PI / 2, 0, 0], fov: 40 }}
-          style={{ width: 88, height: 88 }}
-          dpr={[1, 2]}
-          gl={{ antialias: false }}
-          resize={{ debounce: 0 }}
-        >
-          <color attach="background" args={['#3a2a1a']} />
-          <ambientLight intensity={2.2} />
-          <directionalLight position={[0.3, 0.8, 0.4]} intensity={1.4} />
-          <pointLight position={[0, 0.3, 0]} intensity={0.6} />
-          <Suspense fallback={null}>
-            <Physics timeStep={PHYSICS_TIMESTEP} gravity={[0, -9.81, 0]}>
-              <DiceTray />
-              <Dice ref={registerDiceRef} />
-            </Physics>
-          </Suspense>
-        </Canvas>
-      </div>
+      <DiceFace value={displayValue} rolling={isDiceRolling} />
 
       <div className="flex flex-col items-start gap-1.5">
         {message && (
-          <div className="text-sm font-semibold max-w-[170px] leading-tight" style={{ color: hex }}>
+          <div className="text-sm font-semibold max-w-[180px] leading-tight" style={{ color: hex }}>
             {message}
           </div>
         )}
