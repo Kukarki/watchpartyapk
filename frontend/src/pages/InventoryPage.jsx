@@ -14,6 +14,20 @@ const CATEGORY_LABELS = {
   special_items: 'Special Items',
 };
 
+// Placeholder art: the starter catalog (supabase_migration_v12.sql) seeded
+// every item with asset_url = NULL -- no real artwork exists yet. Until
+// each item has one, at least distinguish item *types* at a glance instead
+// of showing the same icon for everything.
+const CATEGORY_ICONS = {
+  clothes: '👕',
+  hats: '🎩',
+  glasses: '🕶️',
+  shoes: '👟',
+  backgrounds: '🖼️',
+  room_decorations: '🪴',
+  special_items: '🏆',
+};
+
 function ItemCard({ item, owned, equipped, onEquip, onUnequip, pending }) {
   const color = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
   return (
@@ -22,10 +36,12 @@ function ItemCard({ item, owned, equipped, onEquip, onUnequip, pending }) {
       style={{ borderColor: owned ? `${color}40` : undefined }}
     >
       <div
-        className="w-full aspect-square rounded-lg flex items-center justify-center text-3xl"
+        className="w-full aspect-square rounded-lg flex items-center justify-center text-3xl overflow-hidden"
         style={{ background: `${color}18` }}
       >
-        🎨
+        {item.asset_url
+          ? <img src={item.asset_url} alt={item.name} className="w-full h-full object-cover" />
+          : (CATEGORY_ICONS[item.category] || '🎨')}
       </div>
       <div>
         <p className="text-bright text-sm font-medium truncate">{item.name}</p>
