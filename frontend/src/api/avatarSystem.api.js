@@ -20,4 +20,14 @@ export const avatarSystemApi = {
 
   unequipItem: (itemId) =>
     apiClient.post(`${BASE}/inventory/${itemId}/unequip`).then((r) => r.data),
+
+  // Preset 3D avatars — a ready-to-use gallery, no VRoid Hub account needed.
+  getPresets: () =>
+    apiClient.get(`${BASE}/presets`).then((r) => r.data),
+
+  getMyPreset: () =>
+    apiClient.get(`${BASE}/presets/me`).then((r) => r.data),
+
+  selectPreset: (presetId) =>
+    apiClient.post(`${BASE}/presets/select`, { presetId }).then((r) => r.data),
 };

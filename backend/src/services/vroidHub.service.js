@@ -218,7 +218,13 @@ class VroidHubService {
   }
 
   async selectModel(userId, modelId) {
-    const { error } = await this.sb.from('profiles').update({ vrm_model_id: modelId }).eq('id', userId);
+    // A user's 3D avatar comes from exactly one source at a time -- clear
+    // any preset selection (supabase_migration_v14.sql) when switching to
+    // a VRoid Hub model, mirroring presets.routes.js clearing this column
+    // in the other direction.
+    const { error } = await this.sb.from('profiles')
+      .update({ vrm_model_id: modelId, preset_avatar_id: null })
+      .eq('id', userId);
     if (error) throw error;
   }
 

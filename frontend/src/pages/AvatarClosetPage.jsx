@@ -18,13 +18,24 @@ export default function AvatarClosetPage() {
   const [equippedItems, setEquippedItems] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // VRoid Hub / VRM state
+  // Preset gallery — zero-setup 3D characters, no VRoid Hub account needed.
+  const [presets, setPresets] = useState([]);
+  const [selectedPreset, setSelectedPreset] = useState(null);
+  const [loadingPresets, setLoadingPresets] = useState(true);
+  const [selectingPresetId, setSelectingPresetId] = useState(null);
+
+  // VRoid Hub / VRM state — the "bring your own character" option.
   const [vroidConnected, setVroidConnected] = useState(false);
   const [vroidModels, setVroidModels] = useState([]);
   const [vrmUrl, setVrmUrl] = useState(null);
   const [loadingVroid, setLoadingVroid] = useState(true);
   const [connectingVroid, setConnectingVroid] = useState(false);
   const [selectingId, setSelectingId] = useState(null);
+
+  // Whichever source is active wins the preview — a preset and a VRoid
+  // model are mutually exclusive server-side (selecting one clears the
+  // other), so at most one of these is ever actually set at a time.
+  const activeVrmUrl = selectedPreset?.vrm_url || vrmUrl;
 
   useEffect(() => {
     avatarSystemApi.getAvatar()
@@ -35,6 +46,14 @@ export default function AvatarClosetPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
 
+    Promise.all([avatarSystemApi.getPresets(), avatarSystemApi.getMyPreset()])
+      .then(([list, mine]) => {
+        setPresets(list.presets || []);
+        setSelectedPreset(mine.preset || null);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPresets(false));
+
     Promise.all([vroidHubApi.listModels(), vroidHubApi.getAvatarUrl()])
       .then(([models, avatar]) => {
         setVroidConnected(models.connected);
@@ -44,6 +63,20 @@ export default function AvatarClosetPage() {
       .catch(() => {})
       .finally(() => setLoadingVroid(false));
   }, []);
+
+  const handleSelectPreset = async (preset) => {
+    setSelectingPresetId(preset.id);
+    try {
+      await avatarSystemApi.selectPreset(preset.id);
+      setSelectedPreset(preset);
+      setVrmUrl(null); // server also clears the VRoid selection — mirror locally
+      toast.success('Character selected!');
+    } catch {
+      toast.error('Could not select that character');
+    } finally {
+      setSelectingPresetId(null);
+    }
+  };
 
   const handleConnectVroid = async () => {
     setConnectingVroid(true);
@@ -62,6 +95,7 @@ export default function AvatarClosetPage() {
       await vroidHubApi.selectModel(modelId);
       const { vrmUrl: url } = await vroidHubApi.getAvatarUrl();
       setVrmUrl(url);
+      setSelectedPreset(null); // server also clears the preset selection — mirror locally
       toast.success('3D avatar updated!');
     } catch {
       toast.error('Could not select that model');
@@ -102,12 +136,52 @@ export default function AvatarClosetPage() {
           </Link>
         </div>
 
-        {/* 3D VRM avatar — VRoid Hub */}
+        {/* 3D character preview — whichever source (preset or VRoid) is active */}
+        {activeVrmUrl && (
+          <div className="card p-6">
+            <h2 className="font-display font-semibold text-bright text-base mb-4">Your 3D Character</h2>
+            <Suspense fallback={<div className="w-full aspect-square rounded-xl bg-raised animate-pulse" />}>
+              <VrmViewer vrmUrl={activeVrmUrl} />
+            </Suspense>
+          </div>
+        )}
+
+        {/* Preset gallery — pick a character, no account/setup needed */}
+        <div className="card p-6">
+          <h2 className="font-display font-semibold text-bright text-base">Choose Your Character</h2>
+          <p className="text-dim text-xs mt-0.5 mb-4">Pick a 3D character — free to use, nothing to make or upload.</p>
+
+          {loadingPresets ? (
+            <div className="grid grid-cols-4 gap-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="w-full aspect-square rounded-lg bg-raised animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {presets.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectPreset(p)}
+                  disabled={selectingPresetId === p.id}
+                  title={p.name}
+                  className={`rounded-lg overflow-hidden border transition-colors disabled:opacity-40
+                    ${selectedPreset?.id === p.id ? 'border-amber' : 'border-border hover:border-amber/50'}`}
+                >
+                  <img src={p.thumbnail_url} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 3D VRM avatar — VRoid Hub, the "bring your own character" option */}
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="font-display font-semibold text-bright text-base">3D Avatar</h2>
-              <p className="text-dim text-xs mt-0.5">Link a model you made in VRoid Studio, via VRoid Hub</p>
+              <h2 className="font-display font-semibold text-bright text-base">Bring Your Own Character</h2>
+              <p className="text-dim text-xs mt-0.5">Optional — link a model you made in VRoid Studio, via VRoid Hub</p>
             </div>
             {vroidConnected && (
               <button type="button" onClick={handleDisconnectVroid} className="text-danger text-xs hover:underline underline-offset-2 shrink-0">
@@ -121,11 +195,11 @@ export default function AvatarClosetPage() {
           ) : !vroidConnected ? (
             <div className="space-y-3">
               <p className="text-dim text-xs leading-relaxed">
-                Design your character — hair, outfits, glasses, accessories — for free in{' '}
+                Design your own character — hair, outfits, glasses, accessories — for free in{' '}
                 <a href="https://vroid.com/en/studio" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline underline-offset-2">
                   VRoid Studio
                 </a>
-                , upload it to VRoid Hub, then connect your account here to use it as your WatchParty avatar.
+                , upload it to VRoid Hub, then connect your account here to use it instead of a preset.
               </p>
               <button
                 type="button"
@@ -138,12 +212,6 @@ export default function AvatarClosetPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {vrmUrl && (
-                <Suspense fallback={<div className="w-full aspect-square rounded-xl bg-raised animate-pulse" />}>
-                  <VrmViewer vrmUrl={vrmUrl} />
-                </Suspense>
-              )}
-
               {vroidModels.length === 0 ? (
                 <p className="text-dim text-xs">
                   No models found on your VRoid Hub account yet — make one in{' '}

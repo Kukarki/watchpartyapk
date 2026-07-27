@@ -24,6 +24,7 @@ function createAvatarModule({ io } = {}) {
 
   router.use('/catalog', require('./catalog.routes'));
   router.use('/avatar', require('./avatar.routes'));
+  router.use('/presets', require('./presets.routes'));
   router.use('/inventory', require('./inventory.routes'));
   router.use('/progression', require('./progression.routes'));
   router.use('/stats', require('./stats.routes'));
