@@ -30,12 +30,13 @@ function DiceFace({ value, rolling }) {
   );
 }
 
-// Dice + status, matching the old 2D game's exact look: a flat pip-face
-// die next to the roll button/status text. Real dice fairness still comes
-// from the roll provider (engine/rollProvider.js) -- this component is
-// purely presentational, cycling a random face while isDiceRolling is
-// true (same technique as the old game's rollingFace/setInterval) and
-// then landing on the resolved value.
+// Dice + roll button, matching the old 2D game's exact look: a flat
+// pip-face die next to the button. No status text -- kept intentionally
+// quiet. Real dice fairness still comes from the roll provider
+// (engine/rollProvider.js) -- this component is purely presentational,
+// cycling a random face while isDiceRolling is true (same technique as
+// the old game's rollingFace/setInterval) and then landing on the
+// resolved value.
 export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
   const seat = ludoState.seats[ludoState.currentSeatIndex];
   const isHumanTurn = seat.isHuman;
@@ -55,14 +56,6 @@ export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
     return undefined;
   }, [isDiceRolling]);
 
-  let message = null;
-  if (isDiceRolling) message = 'Rolling...';
-  else if (ludoState.phase === 'awaiting-roll') {
-    message = isHumanTurn ? 'Your turn -- roll the dice' : `Waiting for ${seat.name}...`;
-  } else if (ludoState.phase === 'awaiting-move') {
-    message = isHumanTurn ? 'Tap a blinking token to move it' : `${seat.name} rolled ${ludoState.diceValue}...`;
-  }
-
   const displayValue = isDiceRolling ? rollingFace : (ludoState.diceValue ?? 1);
 
   return (
@@ -73,12 +66,6 @@ export default function DicePanel({ ludoState, isDiceRolling, onRoll }) {
       <DiceFace value={displayValue} rolling={isDiceRolling} />
 
       <div className="flex flex-col items-start gap-1.5">
-        {message && (
-          <div className="text-sm font-semibold max-w-[180px] leading-tight" style={{ color: hex }}>
-            {message}
-          </div>
-        )}
-
         {isHumanTurn && ludoState.phase === 'awaiting-roll' && !isDiceRolling && (
           <button
             onClick={onRoll}
