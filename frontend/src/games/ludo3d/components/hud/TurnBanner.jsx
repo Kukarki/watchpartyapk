@@ -5,7 +5,7 @@ import { COLOR_HEX } from '../../engine/colors.js';
 // clear, accessible list -- useful when several tokens are hard to tell
 // apart at a glance, and a discoverable affordance for what's clickable.
 // Rolling/awaiting-roll messaging + the Roll button itself live in
-// DicePanel.jsx (docked to the side, next to the physical die) -- this
+// DicePanel.jsx (top of screen, next to the physical die) -- this
 // banner only covers the move phase, which is about the board itself.
 export default function TurnBanner({ ludoState, onMoveToken }) {
   const seat = ludoState.seats[ludoState.currentSeatIndex];
